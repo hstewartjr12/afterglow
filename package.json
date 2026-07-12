@@ -1,0 +1,14 @@
+{
+  "name": "afterglow",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -n server,client -c magenta,cyan \"npm run dev -w @afterglow/server\" \"npm run dev -w @afterglow/client\"",
+    "build": "npm run build -w @afterglow/shared && npm run build -w @afterglow/server && npm run build -w @afterglow/client",
+    "test": "npm run test -w @afterglow/server && npm run test -w @afterglow/client",
+    "typecheck": "npm run typecheck -w @afterglow/shared && npm run typecheck -w @afterglow/server && npm run typecheck -w @afterglow/client"
+  },
+  "devDependencies": {"concurrently": "^9.2.1"},
+  "engines": {"node": ">=22"}
+}
