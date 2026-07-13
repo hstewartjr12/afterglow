@@ -2,7 +2,17 @@
 
 A local-first visual novel discovery app powered by VNDB. Search titles, build a personal library, search VNDB's full tag catalogue, set weighted taste preferences, and get explainable recommendations.
 
+![Afterglow discovery screen showing an explainable visual novel recommendation](docs/images/afterglow-discover.jpg)
+
 Recommendations combine manual tag weights with each title's VNDB tag relevance, reading-length and platform preferences, VNDB ratings, and signals learned from favorites, ratings, completed stories, and dropped titles.
+
+## Screenshots
+
+Screenshots use sample data.
+
+### Shape your taste profile
+
+![Afterglow taste profile with weighted VNDB tags](docs/images/afterglow-taste.jpg)
 
 ## Start
 
