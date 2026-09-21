@@ -7,4 +7,3 @@ export const libraryEntries = sqliteTable("library_entries", {
   createdAt:text("created_at").notNull(), updatedAt:text("updated_at").notNull()
 });
 export const appSettings = sqliteTable("app_settings", {key:text("key").primaryKey(), value:text("value").notNull()});
-export const vnCache = sqliteTable("vn_cache", {key:text("key").primaryKey(), value:text("value").notNull(), expiresAt:integer("expires_at").notNull()});

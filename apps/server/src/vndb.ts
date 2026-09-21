@@ -1,7 +1,9 @@
-import type { VnDetail, VnSummary } from "@afterglow/shared";
+import type { VnDetail } from "@afterglow/shared";
 import { sqlite } from "./db.js";
 const BASE = "https://api.vndb.org/kana";
-const fields =
+const HALF_HOUR = 30 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
+const vnFields =
   "title,alttitle,aliases,released,rating,votecount,length_minutes,length,platforms,description,image.url,image.sexual,image.violence,tags.id,tags.name,tags.rating,tags.spoiler";
 type Raw = Record<string, any>;
 function map(raw: Raw): VnDetail {
@@ -27,42 +29,59 @@ function map(raw: Raw): VnDetail {
     })),
   };
 }
-async function loadQuery(
+async function cachedFetch<T>(
   key: string,
-  body: Raw,
-): Promise<{ results: VnDetail[]; more?: boolean; count?: number }> {
-  const cachedResult = await sqlite.execute({
+  ttl: number,
+  request: () => Promise<T>,
+): Promise<T> {
+  const cached = await sqlite.execute({
     sql: "SELECT value, expires_at FROM vn_cache WHERE key=?",
     args: [key],
   });
-  const cached = cachedResult.rows[0] as unknown as
-    { value: string; expires_at: number } | undefined;
-  if (cached && Number(cached.expires_at) > Date.now())
-    return JSON.parse(String(cached.value));
-  const response = await fetch(`${BASE}/vn`, {
+  const hit = cached.rows[0] as unknown as
+    | { value: string; expires_at: number }
+    | undefined;
+  if (hit && Number(hit.expires_at) > Date.now())
+    return JSON.parse(String(hit.value)) as T;
+  const result = await request();
+  await sqlite.execute({
+    sql: "INSERT OR REPLACE INTO vn_cache(key,value,expires_at) VALUES(?,?,?)",
+    args: [key, JSON.stringify(result), Date.now() + ttl],
+  });
+  return result;
+}
+async function post(path: string, body: Raw, fallback: string): Promise<any> {
+  const response = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "User-Agent": "Afterglow/0.1 personal VN tracker",
+      "User-Agent": "Afterglow/0.2 personal VN tracker",
     },
-    body: JSON.stringify({ ...body, fields }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = new Error(
       response.status === 429
         ? "VNDB is busy. Please try again shortly."
-        : "VNDB could not be reached.",
+        : fallback,
     );
     (err as any).status = response.status;
     throw err;
   }
-  const raw = (await response.json()) as { results: Raw[]; more?: boolean };
-  const result = { ...raw, results: raw.results.map(map) };
-  await sqlite.execute({
-    sql: "INSERT OR REPLACE INTO vn_cache(key,value,expires_at) VALUES(?,?,?)",
-    args: [key, JSON.stringify(result), Date.now() + 1000 * 60 * 30],
+  return response.json();
+}
+async function loadQuery(
+  key: string,
+  body: Raw,
+): Promise<{ results: VnDetail[]; more?: boolean; count?: number }> {
+  return cachedFetch(key, HALF_HOUR, async () => {
+    const raw = await post(
+      "/vn",
+      { ...body, fields: vnFields },
+      "VNDB could not be reached.",
+    );
+    return { ...raw, results: raw.results.map(map) };
   });
-  return result;
 }
 // Detail and match requests often ask for the same VN concurrently.
 // Share that work until the result is persisted in the existing disk cache.
@@ -102,29 +121,15 @@ export const searchVns = async (options: VnSearchOptions) => {
       : predicates.length === 1
         ? predicates[0]
         : ["and", ...predicates];
-  const reverse = options.sort !== "title";
   const key = `browse4:${JSON.stringify({ ...options, q: options.q.toLowerCase() })}`;
-  const result = await query(key, {
+  return query(key, {
     filters,
     sort: options.sort,
-    reverse,
+    reverse: options.sort !== "title",
     results: 30,
     page: options.page,
     count: true,
   });
-  const exact = result.results.filter(
-    (v) =>
-      (!options.platform || v.platforms.includes(options.platform)) &&
-      (!options.length || v.length === options.length) &&
-      (!options.year ||
-        Boolean(
-          v.released &&
-          /^\d{4}/.test(v.released) &&
-          Number(v.released.slice(0, 4)) >= options.year,
-        )) &&
-      (!options.rating || Boolean(v.rating && v.rating >= options.rating * 10)),
-  );
-  return { ...result, results: exact };
 };
 export async function getVn(id: string) {
   return (
@@ -145,70 +150,47 @@ export async function searchTags(
   category?: "cont" | "ero" | "tech",
 ) {
   const key = `tags3:${category ?? "all"}:${q.toLowerCase()}:${page}`;
-  const cache = await sqlite.execute({
-    sql: "SELECT value, expires_at FROM vn_cache WHERE key=?",
-    args: [key],
-  });
-  const hit = cache.rows[0] as unknown as
-    { value: string; expires_at: number } | undefined;
-  if (hit && Number(hit.expires_at) > Date.now())
-    return JSON.parse(String(hit.value));
-  const predicates: any[] = [];
-  if (q) predicates.push(["search", "=", q]);
-  if (category) predicates.push(["category", "=", category]);
-  const body: any = {
-    fields: "name,aliases,description,category,searchable,applicable,vn_count",
-    results: 50,
-    page,
-    sort: q ? "searchrank" : "vn_count",
-    reverse: !q,
-    count: true,
-  };
-  if (predicates.length)
-    body.filters =
-      predicates.length === 1 ? predicates[0] : ["and", ...predicates];
-  const response = await fetch(`${BASE}/tag`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": "Afterglow/0.2 personal VN tracker",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const e = new Error(
-      response.status === 429
-        ? "VNDB is busy. Please try again shortly."
-        : "The VNDB tag index could not be reached.",
+  const result = await cachedFetch(key, DAY, async () => {
+    const predicates: any[] = [];
+    if (q) predicates.push(["search", "=", q]);
+    if (category) predicates.push(["category", "=", category]);
+    const body: any = {
+      fields: "name,aliases,description,category,searchable,applicable,vn_count",
+      results: 50,
+      page,
+      sort: q ? "searchrank" : "vn_count",
+      reverse: !q,
+      count: true,
+    };
+    if (predicates.length)
+      body.filters =
+        predicates.length === 1 ? predicates[0] : ["and", ...predicates];
+    const raw = await post(
+      "/tag",
+      body,
+      "The VNDB tag index could not be reached.",
     );
-    (e as any).status = response.status;
-    throw e;
-  }
-  const raw = (await response.json()) as any;
-  const usable = raw.results
-    .filter((t: any) => t.searchable && t.applicable)
-    .map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      aliases: t.aliases ?? [],
-      description: (t.description ?? "").replace(/\[[^\]]+\]/g, ""),
-      category: t.category,
-      searchable: t.searchable,
-      applicable: t.applicable,
-      vnCount: t.vn_count ?? 0,
-    }));
-  const result = {
-    recordCount: raw.count,
-    usableOnPage: usable.length,
-    page,
-    more: raw.more,
-    results: usable,
-  };
-  await sqlite.execute({
-    sql: "INSERT OR REPLACE INTO vn_cache(key,value,expires_at) VALUES(?,?,?)",
-    args: [key, JSON.stringify(result), Date.now() + 86400000],
+    const usable = raw.results
+      .filter((t: Raw) => t.searchable && t.applicable)
+      .map((t: Raw) => ({
+        id: t.id,
+        name: t.name,
+        aliases: t.aliases ?? [],
+        description: (t.description ?? "").replace(/\[[^\]]+\]/g, ""),
+        category: t.category,
+        searchable: t.searchable,
+        applicable: t.applicable,
+        vnCount: t.vn_count ?? 0,
+      }));
+    return {
+      recordCount: raw.count,
+      usableOnPage: usable.length,
+      page,
+      more: raw.more,
+      results: usable,
+    };
   });
-  if (!usable.length && raw.more) return searchTags(q, page + 1, category);
+  if (!result.results.length && result.more) return searchTags(q, page + 1, category);
   return result;
 }
 export async function personalizedVns(

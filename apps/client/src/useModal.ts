@@ -25,7 +25,7 @@ export function useModal<T extends HTMLElement>() {
       const elements = [
         ...dialog.querySelectorAll<HTMLElement>(focusable),
         ...document.querySelectorAll<HTMLElement>(
-          `.tag-popover ${focusable.split(", ").join(", .tag-popover ")}`,
+          ".tag-popover button:not(:disabled), .tag-popover a[href]",
         ),
       ].filter(
         (element) =>

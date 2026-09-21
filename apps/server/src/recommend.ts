@@ -27,10 +27,9 @@ function learnedTaste(library:LibraryEntry[],includeSpoilers:boolean){
 function explicitFit(vn:VnSummary,prefs:Preferences){
  if(!prefs.tagPreferences.length)return{score:.5,positive:[] as string[],negative:[] as string[]};
  const eligible=vn.tags.filter(tag=>prefs.useSpoilerTagsInRecommendations||tag.spoiler===0);const tags=new Map(eligible.map(tag=>[tag.id,tag]));
- const tagsByName=new Map(eligible.map(tag=>[tag.name.toLowerCase(),tag]));
  let positiveTotal=0,positiveMatch=0,avoidTotal=0,avoidMatch=0;const positive:string[]=[];const negative:string[]=[];
  for(const pref of prefs.tagPreferences){
-  const tag=tags.get(pref.id)??tagsByName.get(pref.name.toLowerCase());const relevance=tag?clamp(tag.rating/3):0;
+  const tag=tags.get(pref.id);const relevance=tag?clamp(tag.rating/3):0;
   if(pref.weight>0){positiveTotal+=pref.weight;positiveMatch+=pref.weight*relevance;if(relevance>=.25&&tag?.spoiler===0)positive.push(pref.name);}
   else if(pref.weight<0){avoidTotal+=Math.abs(pref.weight);avoidMatch+=Math.abs(pref.weight)*relevance;if(relevance>=.25&&tag?.spoiler===0)negative.push(pref.name);}
  }

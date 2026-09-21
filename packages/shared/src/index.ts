@@ -12,8 +12,9 @@ export const vnSummarySchema = z.object({
 });
 export type VnSummary = z.infer<typeof vnSummarySchema>;
 
-export const vnDetailSchema = vnSummarySchema.extend({description:z.string().nullable(), aliases:z.array(z.string()).default([])});
-export type VnDetail = z.infer<typeof vnDetailSchema>;
+export type VnDetail = VnSummary & {description: string|null; aliases: string[]};
+export const platforms = ["win", "lin", "mac", "and", "ios", "swi", "ps4", "ps5"] as const;
+export const platformSchema = z.enum(platforms);
 export const vndbTagSchema = z.object({id:z.string(),name:z.string(),aliases:z.array(z.string()).default([]),description:z.string().default(""),category:z.enum(["cont","ero","tech"]),searchable:z.boolean(),applicable:z.boolean(),vnCount:z.number().default(0)});
 export type VndbTag = z.infer<typeof vndbTagSchema>;
 
@@ -32,4 +33,3 @@ export const preferencesSchema = z.object({
 export type Preferences = z.infer<typeof preferencesSchema>;
 
 export type Recommendation = {vn:VnSummary; score:number; matchPercent:number; reasons:string[]};
-export type ApiError = {error:string; code:string};

@@ -23,16 +23,37 @@ import { api } from "./api";
 import { useModal } from "./useModal";
 import { invalidateMatches } from "./queries";
 import { createPortal } from "react-dom";
+import { libraryStatuses, platforms } from "@afterglow/shared";
 type View = "home" | "discover" | "library" | "taste";
 type SearchRequest = {
   term: string;
   id: number;
 };
 const lengths = ["", "Very short", "Short", "Medium", "Long", "Very long"];
-const platforms = ["win", "and", "ios", "swi", "ps4", "ps5"];
+const platformLabels: Record<string, string> = {
+  win: "Windows",
+  lin: "Linux",
+  mac: "macOS",
+  and: "Android",
+  ios: "iOS",
+  swi: "Nintendo Switch",
+  ps4: "PlayStation 4",
+  ps5: "PlayStation 5",
+};
 const clean = (s: string | null | undefined) =>
   s?.replace(/\[url=[^\]]+\]|\[\/url\]|\[[^\]]+\]/g, "") ||
   "No spoiler-free description is available.";
+function activateOnKey(activate: () => void) {
+  return (e: React.KeyboardEvent<HTMLElement>) => {
+    if (
+      e.target === e.currentTarget &&
+      (e.key === "Enter" || e.key === " ")
+    ) {
+      e.preventDefault();
+      activate();
+    }
+  };
+}
 function Cover({
   vn,
   className = "",
@@ -215,15 +236,7 @@ function Card({
       whileHover={{ y: -4 }}
       className="vn-card"
       onClick={activate}
-      onKeyDown={(e) => {
-        if (
-          e.target === e.currentTarget &&
-          (e.key === "Enter" || e.key === " ")
-        ) {
-          e.preventDefault();
-          activate();
-        }
-      }}
+      onKeyDown={activateOnKey(activate)}
     >
       <Cover vn={vn} />
       <div className="card-data">
@@ -392,14 +405,14 @@ function Home({
 }
 function Discover({
   open,
-  searchRequest,
+  initialTerm,
 }: {
   open: (v: VnSummary) => void;
-  searchRequest: SearchRequest;
+  initialTerm: string;
 }) {
-  const [term, setTerm] = useState(searchRequest.term);
+  const [term, setTerm] = useState(initialTerm);
   const [filters, setFilters] = useState({
-    q: searchRequest.term,
+    q: initialTerm,
     platform: "",
     length: "",
     year: "",
@@ -429,10 +442,6 @@ function Discover({
     );
     return () => clearTimeout(timer);
   }, [term]);
-  useEffect(() => {
-    setTerm(searchRequest.term);
-    setFilters((previous) => ({ ...previous, q: searchRequest.term, page: 1 }));
-  }, [searchRequest]);
   const found = useQuery({
     queryKey: ["search", filters],
     queryFn: ({ signal }) => api.search(filters, signal),
@@ -507,16 +516,7 @@ function Discover({
             onChange={(e) => update("platform", e.target.value)}
           >
             <option value="">All platforms</option>
-            {Object.entries({
-              win: "Windows",
-              lin: "Linux",
-              mac: "macOS",
-              and: "Android",
-              ios: "iOS",
-              swi: "Nintendo Switch",
-              ps4: "PlayStation 4",
-              ps5: "PlayStation 5",
-            }).map(([value, label]) => (
+            {Object.entries(platformLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
@@ -709,18 +709,16 @@ function LibraryView({
         </div>
       </section>
       <div className="tabs" role="group" aria-label="Library status">
-        {["all", "wishlist", "backlog", "playing", "completed", "dropped"].map(
-          (f) => (
-            <button
-              aria-pressed={filter === f}
-              className={filter === f ? "active" : ""}
-              onClick={() => setFilter(f)}
-              key={f}
-            >
-              {f.toUpperCase()} <small>{counts[f] ?? 0}</small>
-            </button>
-          ),
-        )}
+        {["all", ...libraryStatuses].map((f) => (
+          <button
+            aria-pressed={filter === f}
+            className={filter === f ? "active" : ""}
+            onClick={() => setFilter(f)}
+            key={f}
+          >
+            {f.toUpperCase()} <small>{counts[f] ?? 0}</small>
+          </button>
+        ))}
       </div>
       <div className="library-tools">
         <label className="library-search">
@@ -755,15 +753,7 @@ function LibraryView({
           tabIndex={0}
           className="current-reading"
           onClick={() => open(playing.vn)}
-          onKeyDown={(e) => {
-            if (
-              e.target === e.currentTarget &&
-              (e.key === "Enter" || e.key === " ")
-            ) {
-              e.preventDefault();
-              open(playing.vn);
-            }
-          }}
+          onKeyDown={activateOnKey(() => open(playing.vn))}
         >
           <Cover vn={playing.vn} />
           <div>
@@ -795,15 +785,7 @@ function LibraryView({
                 role="button"
                 tabIndex={0}
                 onClick={() => open(item.vn)}
-                onKeyDown={(e) => {
-                  if (
-                    e.target === e.currentTarget &&
-                    (e.key === "Enter" || e.key === " ")
-                  ) {
-                    e.preventDefault();
-                    open(item.vn);
-                  }
-                }}
+                onKeyDown={activateOnKey(() => open(item.vn))}
                 key={item.id}
               >
                 <Cover vn={item.vn} />
@@ -1054,12 +1036,14 @@ function Taste() {
   });
   const [draft, setDraft] = useState<Preferences | null>(null);
   const [index, setIndex] = useState<string | null>(null);
+  const [savedJson, setSavedJson] = useState<string | null>(null);
   useEffect(() => {
     if (pref.data && !draft) setDraft(pref.data);
   }, [pref.data, draft]);
   const save = useMutation({
     mutationFn: api.savePreferences,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      setSavedJson(JSON.stringify(variables));
       invalidateMatches(qc);
       qc.invalidateQueries({ queryKey: ["preferences"] });
     },
@@ -1204,9 +1188,7 @@ function Taste() {
         >
           {save.isPending
             ? "SAVING…"
-            : save.isSuccess &&
-                JSON.stringify(save.variables) ===
-                  JSON.stringify({ ...draft, completed: true })
+            : savedJson === JSON.stringify({ ...draft, completed: true })
               ? "PROFILE SAVED"
               : "SAVE TASTE PROFILE"}
           <ArrowRight />
@@ -1362,8 +1344,11 @@ function Detail({
   const [form, setForm] = useState<Partial<LibraryEntry>>({});
   const [allTags, setAllTags] = useState(false);
   const [spoilerLevel, setSpoilerLevel] = useState<0 | 1 | 2>(0);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [tagAnchor, setTagAnchor] = useState<HTMLElement | null>(null);
+  const [activeTag, setActiveTag] = useState<{
+    id: string;
+    anchor: HTMLElement;
+  } | null>(null);
+  const [savedJson, setSavedJson] = useState<string | null>(null);
   const initialized = useRef(false);
   useEffect(() => {
     if (lib.isSuccess && !initialized.current) {
@@ -1376,17 +1361,16 @@ function Detail({
       if (e.key !== "Escape") return;
       e.preventDefault();
       e.stopPropagation();
-      if (activeTag) {
-        setActiveTag(null);
-        setTagAnchor(null);
-      } else onClose();
+      if (activeTag) setActiveTag(null);
+      else onClose();
     };
     document.addEventListener("keydown", handleEscape, true);
     return () => document.removeEventListener("keydown", handleEscape, true);
   }, [activeTag, onClose]);
   const save = useMutation({
     mutationFn: (input: LibraryInput) => api.saveLibrary(vn.id, input),
-    onSuccess: () => {
+    onSuccess: (_data, input) => {
+      setSavedJson(JSON.stringify(input));
       qc.invalidateQueries({ queryKey: ["library"] });
       invalidateMatches(qc);
     },
@@ -1413,7 +1397,6 @@ function Detail({
     setSpoilerLevel(level);
     setAllTags(false);
     setActiveTag(null);
-    setTagAnchor(null);
   };
   const currentMatch = fit.data ?? recommendation;
   const setTag = (tag: VnSummary["tags"][number], weight: number) => {
@@ -1429,7 +1412,6 @@ function Detail({
           : [...rest, { id: tag.id, name: tag.name, weight }],
     });
     setActiveTag(null);
-    setTagAnchor(null);
   };
   const input: LibraryInput = {
     vn: d,
@@ -1450,10 +1432,8 @@ function Detail({
       exit={{ opacity: 0 }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
-          if (activeTag) {
-            setActiveTag(null);
-            setTagAnchor(null);
-          } else onClose();
+          if (activeTag) setActiveTag(null);
+          else onClose();
         }
       }}
     >
@@ -1472,7 +1452,6 @@ function Detail({
             !(e.target as HTMLElement).closest(".detail-tag,.tag-popover")
           ) {
             setActiveTag(null);
-            setTagAnchor(null);
           }
         }}
       >
@@ -1583,23 +1562,21 @@ function Detail({
                   return (
                     <article
                       data-tag-id={t.id}
-                      className={`detail-tag spoiler-${t.spoiler} ${choiceLabel ? "is-rated" : ""} ${activeTag === t.id ? "is-open" : ""}`}
+                      className={`detail-tag spoiler-${t.spoiler} ${choiceLabel ? "is-rated" : ""} ${activeTag?.id === t.id ? "is-open" : ""}`}
                       key={t.id}
                     >
                       <button
                         className="tag-summary"
                         title={t.name}
-                        aria-expanded={activeTag === t.id}
+                        aria-expanded={activeTag?.id === t.id}
                         aria-label={`${t.name}, relevance ${t.rating.toFixed(1)}${choiceLabel ? `, marked ${choiceLabel.toLowerCase()}` : ""}. Tune tag`}
-                        onClick={(e) => {
-                          if (activeTag === t.id) {
-                            setActiveTag(null);
-                            setTagAnchor(null);
-                          } else {
-                            setActiveTag(t.id);
-                            setTagAnchor(e.currentTarget);
-                          }
-                        }}
+                        onClick={(e) =>
+                          setActiveTag(
+                            activeTag?.id === t.id
+                              ? null
+                              : { id: t.id, anchor: e.currentTarget },
+                          )
+                        }
                       >
                         <em>
                           <span>{t.name}</span>
@@ -1629,24 +1606,20 @@ function Detail({
             </div>
             <AnimatePresence>
               {activeTag &&
-                tagAnchor &&
                 (() => {
-                  const tag = d.tags.find((t) => t.id === activeTag);
+                  const tag = d.tags.find((t) => t.id === activeTag.id);
                   if (!tag) return null;
                   const choice = pref.data?.tagPreferences.find(
                     (x) => x.id === tag.id,
                   )?.weight;
                   return (
                     <TagChoicePopover
-                      anchor={tagAnchor}
+                      anchor={activeTag.anchor}
                       tag={tag}
                       choice={choice}
                       pending={!pref.data || taste.isPending}
                       onChoose={(w) => setTag(tag, w)}
-                      onClose={() => {
-                        setActiveTag(null);
-                        setTagAnchor(null);
-                      }}
+                      onClose={() => setActiveTag(null)}
                     />
                   );
                 })()}
@@ -1766,8 +1739,7 @@ function Detail({
           >
             {save.isPending
               ? "SAVING…"
-              : save.isSuccess &&
-                  JSON.stringify(save.variables) === JSON.stringify(input)
+              : savedJson === JSON.stringify(input)
                 ? "SAVED"
                 : "SAVE TO LIBRARY"}
             <ArrowRight />
@@ -1820,7 +1792,11 @@ export default function App() {
     >
       {view === "home" && <Home go={setView} open={setSelected} />}{" "}
       {view === "discover" && (
-        <Discover open={setSelected} searchRequest={searchRequest} />
+        <Discover
+          key={searchRequest.id}
+          initialTerm={searchRequest.term}
+          open={setSelected}
+        />
       )}{" "}
       {view === "library" && (
         <LibraryView open={setSelected} discover={() => setView("discover")} />
