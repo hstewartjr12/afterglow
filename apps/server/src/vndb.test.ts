@@ -74,6 +74,28 @@ describe("catalogue pagination", () => {
   });
 });
 
+describe("search ordering", () => {
+  it("defaults to relevance while searching and rating while browsing", async () => {
+    await searchVns({ q: "story", page: 1 });
+    const searchBody = JSON.parse(
+      vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string,
+    );
+    expect(searchBody.sort).toBe("searchrank");
+    expect(searchBody.reverse).toBe(false);
+    await searchVns({ q: "", page: 1 });
+    const browseBody = JSON.parse(
+      vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string,
+    );
+    expect(browseBody.sort).toBe("rating");
+    expect(browseBody.reverse).toBe(true);
+    await searchVns({ q: "", page: 1, sort: "searchrank" });
+    const fallbackBody = JSON.parse(
+      vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string,
+    );
+    expect(fallbackBody.sort).toBe("rating");
+  });
+});
+
 describe("concurrent VN requests", () => {
   it("shares upstream work for the same title", async () => {
     await Promise.all([getVn("v1"), getVn("v1")]);

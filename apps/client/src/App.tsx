@@ -417,7 +417,7 @@ function Discover({
     length: "",
     year: "",
     rating: "",
-    sort: "rating",
+    sort: "searchrank",
     page: 1,
   });
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -442,9 +442,12 @@ function Discover({
     );
     return () => clearTimeout(timer);
   }, [term]);
+  const effectiveSort =
+    filters.sort === "searchrank" && !filters.q ? "rating" : filters.sort;
+  const request = { ...filters, sort: effectiveSort };
   const found = useQuery({
-    queryKey: ["search", filters],
-    queryFn: ({ signal }) => api.search(filters, signal),
+    queryKey: ["search", request],
+    queryFn: ({ signal }) => api.search(request, signal),
   });
   const scored = useQuery({
     queryKey: [
@@ -466,7 +469,7 @@ function Discover({
       length: "",
       year: "",
       rating: "",
-      sort: "rating",
+      sort: "searchrank",
       page: 1,
     });
   };
@@ -476,7 +479,11 @@ function Discover({
     filters.year,
     filters.rating,
   ].filter(Boolean).length;
-  const active = Boolean(term || filterCount || filters.sort !== "rating");
+  const active = Boolean(
+    term ||
+      filterCount ||
+      (filters.sort !== "rating" && filters.sort !== "searchrank"),
+  );
   const years = [
     ...new Set([new Date().getFullYear(), 2025, 2020, 2015, 2010, 2000, 1990]),
   ];
@@ -577,9 +584,12 @@ function Discover({
           <label className="sort-control">
             SORT BY
             <select
-              value={filters.sort}
+              value={effectiveSort}
               onChange={(e) => update("sort", e.target.value)}
             >
+              <option value="searchrank" disabled={!filters.q}>
+                Best match
+              </option>
               <option value="rating">Highest rated</option>
               <option value="votecount">Most popular</option>
               <option value="released">Newest</option>

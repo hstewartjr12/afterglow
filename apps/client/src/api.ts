@@ -13,7 +13,7 @@ export type VnSearchFilters = {
   length: string;
   year: string;
   rating: string;
-  sort: string;
+  sort?: string;
   page?: number;
 };
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -36,8 +36,8 @@ export const api = {
     const params = new URLSearchParams({
       q: filters.q,
       page: String(filters.page ?? 1),
-      sort: filters.sort,
     });
+    if (filters.sort) params.set("sort", filters.sort);
     for (const key of ["platform", "length", "year", "rating"] as const)
       if (filters[key]) params.set(key, filters[key]);
     return request<{

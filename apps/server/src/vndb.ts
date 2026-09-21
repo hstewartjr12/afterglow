@@ -105,7 +105,7 @@ export type VnSearchOptions = {
   length?: number;
   year?: number;
   rating?: number;
-  sort: "rating" | "released" | "votecount" | "title";
+  sort?: "rating" | "released" | "votecount" | "title" | "searchrank";
 };
 export const searchVns = async (options: VnSearchOptions) => {
   const predicates: any[] = [];
@@ -121,11 +121,15 @@ export const searchVns = async (options: VnSearchOptions) => {
       : predicates.length === 1
         ? predicates[0]
         : ["and", ...predicates];
+  const sort =
+    !options.q && options.sort === "searchrank"
+      ? "rating"
+      : (options.sort ?? (options.q ? "searchrank" : "rating"));
   const key = `browse4:${JSON.stringify({ ...options, q: options.q.toLowerCase() })}`;
   return query(key, {
     filters,
-    sort: options.sort,
-    reverse: options.sort !== "title",
+    sort,
+    reverse: sort !== "title" && sort !== "searchrank",
     results: 30,
     page: options.page,
     count: true,
