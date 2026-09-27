@@ -45,7 +45,7 @@
   height: 100%;
   margin-left: auto;
 }
-.site-header nav button {
+.site-header nav .nav-link {
   position: relative;
   display: flex;
   align-items: center;
@@ -57,18 +57,18 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.site-header nav button small {
+.site-header nav .nav-link small {
   color: var(--ink-3);
   font: 500 0.75rem var(--font-mono);
   letter-spacing: 0;
 }
-.site-header nav button:hover {
+.site-header nav .nav-link:hover {
   color: var(--accent);
 }
-.site-header nav button.active {
+.site-header nav .nav-link.active {
   color: var(--accent);
 }
-.site-header nav button.active::after {
+.site-header nav .nav-link.active::after {
   content: "";
   position: absolute;
   left: 14px;
@@ -123,17 +123,42 @@
 .nav-scrim {
   display: none;
 }
-@media (max-width: 1000px) {
+.site-header nav .nav-link {
+  white-space: nowrap;
+}
+@media (max-width: 1180px) and (min-width: 801px) {
+  /* Mid-size screens: tighter header so labels never wrap. */
   .site-header {
-    gap: 16px;
+    gap: 20px;
   }
-  .site-header > .header-search {
+  .site-header nav {
+    gap: 0;
+  }
+  .site-header nav .nav-link small {
     display: none;
+  }
+  .header-search {
+    width: 200px;
+  }
+}
+@media (max-width: 920px) and (min-width: 801px) {
+  .site-header {
+    gap: 12px;
+  }
+  .site-header nav .nav-link {
+    padding: 0 10px;
+  }
+  .header-search {
+    width: 150px;
   }
 }
 @media (max-width: 800px) {
   .site-header {
     height: 64px;
+  }
+  /* Phones search from the menu drawer instead. */
+  .site-header > .header-search {
+    display: none;
   }
   .site-header > .theme-switch {
     display: none;
@@ -164,13 +189,13 @@
     clip-path: inset(0);
     visibility: visible;
   }
-  .site-header nav button {
+  .site-header nav .nav-link {
     min-height: 56px;
     padding: 0;
     border-bottom: 1px solid var(--line);
     font-size: 1.25rem;
   }
-  .site-header nav button.active::after {
+  .site-header nav .nav-link.active::after {
     display: none;
   }
   .nav-label {
@@ -380,34 +405,29 @@
   gap: 6px;
 }
 
-/* "How matching works" disclosure */
-.info {
-  position: relative;
-  display: inline-block;
-}
-.info > summary {
+/* "How matching works" explanation */
+.info-button {
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border: 1px solid currentColor;
   border-radius: 50%;
+  background: none;
   color: var(--ink-2);
   font: 600 0.75rem var(--font-display);
   letter-spacing: 0;
-  list-style: none;
-  cursor: pointer;
 }
-.info > summary::-webkit-details-marker {
-  display: none;
+.info-button:hover,
+.info-button[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .info-pop {
-  position: absolute;
-  z-index: 60;
-  top: calc(100% + 8px);
-  left: 50%;
-  width: min(320px, 80vw);
-  transform: translateX(-50%);
+  position: fixed;
+  z-index: 250;
+  width: min(320px, calc(100vw - 24px));
   padding: 14px 16px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
@@ -416,15 +436,11 @@
   color: var(--ink);
   font: 400 0.9375rem / 1.5 var(--font-text);
   letter-spacing: 0;
+  text-align: left;
   text-transform: none;
 }
 .info-pop p + p {
   margin-top: 8px;
-}
-.info-pop.align-end {
-  left: auto;
-  right: -10px;
-  transform: none;
 }
 
 /* The visual-novel dialogue box, used for "why it fits you". */
@@ -676,4 +692,17 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+/* Comfortable tap targets for the theme switch in the phone menu. */
+.nav-theme .theme-switch {
+  padding: 4px;
+  gap: 4px;
+}
+.nav-theme .theme-switch button {
+  width: 40px;
+  height: 40px;
+}
+.nav-theme .theme-switch button svg {
+  width: 18px;
+  height: 18px;
 }

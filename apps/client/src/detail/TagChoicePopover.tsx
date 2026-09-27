@@ -72,7 +72,7 @@ export function TagChoicePopover({
       }}
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
+      exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <strong className="tag-action-name">{tag.name}</strong>

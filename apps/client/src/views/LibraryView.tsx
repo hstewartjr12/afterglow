@@ -9,6 +9,7 @@ import { api } from "../api";
 import { activateOnKey, altTitle, plural, statusLabel } from "../lib/format";
 import { easeOut } from "../lib/motion";
 import { Cover } from "../components/Cover";
+import { TintScope } from "../components/TintScope";
 import { Loading, ErrorState } from "../components/status";
 export function LibraryView({
   open,
@@ -101,19 +102,21 @@ export function LibraryView({
                 onClick={() => open(item.vn)}
                 onKeyDown={activateOnKey(() => open(item.vn))}
               >
-                <Cover vn={item.vn} compact className="has-shadow" />
-                <div>
-                  <h3>{item.vn.title}</h3>
-                  <p className="progress-line">
-                    <span className="progress">
-                      <span style={{ width: `${item.progress}%` }} />
-                    </span>
-                    {item.progress}%
-                  </p>
-                  <p className="continue-note">
-                    {item.notes || "Your next chapter is waiting."}
-                  </p>
-                </div>
+                <TintScope url={item.vn.imageUrl}>
+                  <Cover vn={item.vn} compact className="has-shadow" />
+                  <div>
+                    <h3>{item.vn.title}</h3>
+                    <p className="progress-line">
+                      <span className="progress">
+                        <span style={{ width: `${item.progress}%` }} />
+                      </span>
+                      {item.progress}%
+                    </p>
+                    <p className="continue-note">
+                      {item.notes || "Your next chapter is waiting."}
+                    </p>
+                  </div>
+                </TintScope>
               </article>
             ))}
           </div>
@@ -201,47 +204,49 @@ export function LibraryView({
                       delay: Math.min(index, 10) * 0.03,
                     }}
                   >
-                    <div className="ledger-thumb">
-                      <Cover vn={item.vn} compact />
-                      {item.favorite && (
-                        <span className="ribbon" title="Favorite">
-                          <span className="visually-hidden">Favorite</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="ledger-title">
-                      <h3>{item.vn.title}</h3>
-                      {alt && <p className="jp">{alt}</p>}
-                    </div>
-                    <span className={`status-pill status-${item.status}`}>
-                      {statusLabel(item.status)}
-                    </span>
-                    <span className="ledger-rating">
-                      {item.personalRating ? (
-                        <>
-                          ★ {item.personalRating}
-                          <small>/10</small>
-                        </>
-                      ) : (
-                        <span className="muted">Unrated</span>
-                      )}
-                    </span>
-                    <span
-                      className="ledger-progress"
-                      aria-label={`${item.progress}% complete`}
-                    >
-                      <span className="progress">
-                        <span style={{ width: `${item.progress}%` }} />
+                    <TintScope url={item.vn.imageUrl}>
+                      <div className="ledger-thumb">
+                        <Cover vn={item.vn} compact />
+                        {item.favorite && (
+                          <span className="ribbon" title="Favorite">
+                            <span className="visually-hidden">Favorite</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="ledger-title">
+                        <h3>{item.vn.title}</h3>
+                        {alt && <p className="jp">{alt}</p>}
+                      </div>
+                      <span className={`status-pill status-${item.status}`}>
+                        {statusLabel(item.status)}
                       </span>
-                      <small>{item.progress}%</small>
-                    </span>
-                    <p className="ledger-note">
-                      {item.notes || <span className="muted">No notes</span>}
-                    </p>
-                    <ChevronRight
-                      className="ledger-chevron"
-                      aria-hidden="true"
-                    />
+                      <span className="ledger-rating">
+                        {item.personalRating ? (
+                          <>
+                            ★ {item.personalRating}
+                            <small>/10</small>
+                          </>
+                        ) : (
+                          <span className="muted">Unrated</span>
+                        )}
+                      </span>
+                      <span
+                        className="ledger-progress"
+                        aria-label={`${item.progress}% complete`}
+                      >
+                        <span className="progress">
+                          <span style={{ width: `${item.progress}%` }} />
+                        </span>
+                        <small>{item.progress}%</small>
+                      </span>
+                      <p className="ledger-note">
+                        {item.notes || <span className="muted">No notes</span>}
+                      </p>
+                      <ChevronRight
+                        className="ledger-chevron"
+                        aria-hidden="true"
+                      />
+                    </TintScope>
                   </m.article>
                 );
               })}

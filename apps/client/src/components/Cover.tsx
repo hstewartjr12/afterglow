@@ -2,6 +2,7 @@ import { useState } from "react";
 import { EyeOff } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
 import { coverIsSensitive } from "../lib/format";
+import { coverSrc } from "../lib/coverColor";
 
 export function Cover({
   vn,
@@ -35,7 +36,7 @@ export function Cover({
               setLoadedUrl(vn.imageUrl);
           }}
           onLoad={() => setLoadedUrl(vn.imageUrl)}
-          src={vn.imageUrl!}
+          src={coverSrc(vn.imageUrl!)}
           onError={() => setFailedUrl(vn.imageUrl)}
           alt={show ? `${vn.title} cover` : "Sensitive cover hidden"}
         />
@@ -70,7 +71,7 @@ export function Glow({ vn }: { vn: VnSummary }) {
     <div
       className="glow"
       aria-hidden="true"
-      style={{ backgroundImage: `url("${vn.imageUrl}")` }}
+      style={{ backgroundImage: `url("${coverSrc(vn.imageUrl)}")` }}
     />
   );
 }

@@ -84,11 +84,25 @@
 .hero-sky .glow {
   inset: 0 -10%;
   height: auto;
+  /* A long, eased falloff so the glow never shows an edge. */
   mask-image: radial-gradient(
-    ellipse 55% 70% at 22% 45%,
-    #000 15%,
-    transparent 72%
+    ellipse 70% 60% at 24% 40%,
+    #000 0%,
+    rgb(0 0 0 / 0.55) 40%,
+    rgb(0 0 0 / 0.15) 65%,
+    transparent 88%
   );
+}
+@media (max-width: 700px) {
+  .hero-sky .glow {
+    mask-image: radial-gradient(
+      ellipse 130% 38% at 28% 22%,
+      #000 0%,
+      rgb(0 0 0 / 0.5) 40%,
+      rgb(0 0 0 / 0.12) 68%,
+      transparent 92%
+    );
+  }
 }
 .hero-sky::after {
   /* Dusk: warm light low on the horizon, fading into the page. */
@@ -324,7 +338,7 @@
 }
 
 /* Section headings with vertical Japanese, set like a book spine */
-@media (min-width: 701px) {
+@media (min-width: 1200px) {
   .section-head {
     position: relative;
   }
@@ -508,7 +522,7 @@
 }
 
 /* Navigation underline glides to the active chapter */
-.site-header nav button.active::after {
+.site-header nav .nav-link.active::after {
   display: none;
 }
 .nav-underline {

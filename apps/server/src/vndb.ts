@@ -267,3 +267,36 @@ export async function personalizedVns(
     ).values(),
   ];
 }
+
+/** Only VNDB's own image hosts may be fetched through the cover proxy. */
+export function isCoverUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "vndb.org" || url.hostname.endsWith(".vndb.org"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetches a cover image so the client can serve it from its own origin, which
+ * lets the browser read its colors for tinting the interface.
+ */
+export async function fetchCover(url: string) {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": "Afterglow/0.1 personal VN tracker" },
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new UpstreamError("The cover could not be loaded.");
+  }
+  const type = response.headers.get("content-type") ?? "";
+  if (!response.ok || !type.startsWith("image/"))
+    throw new UpstreamError("The cover could not be loaded.", response.status);
+  return { type, body: Buffer.from(await response.arrayBuffer()) };
+}

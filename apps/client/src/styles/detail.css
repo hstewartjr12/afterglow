@@ -15,9 +15,11 @@
   inset: -80px -40px auto;
   height: 420px;
   mask-image: radial-gradient(
-    ellipse 60% 70% at 20% 30%,
-    #000 20%,
-    transparent 75%
+    ellipse 70% 75% at 20% 30%,
+    #000 0%,
+    rgb(0 0 0 / 0.5) 40%,
+    rgb(0 0 0 / 0.12) 68%,
+    transparent 90%
   );
 }
 .detail-cover {
@@ -46,7 +48,7 @@
 .detail-scores {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 16px 40px;
   margin-top: 22px;
   padding-top: 18px;
@@ -308,6 +310,7 @@
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 4px;
+  max-width: 440px;
 }
 .rating-scale button {
   min-width: 0;
@@ -402,6 +405,9 @@
   .detail-scores .score-value {
     font-size: 2rem;
   }
+  .vndb-link {
+    margin-left: 0;
+  }
   .tag-list {
     grid-template-columns: 1fr;
     max-height: none;
@@ -409,5 +415,31 @@
   .spoiler-control {
     width: 100%;
     justify-content: space-between;
+  }
+}
+@media (max-width: 1100px) and (min-width: 701px) {
+  /* Mid-size sheets: the tracker sits under the story in two columns. */
+  .tracker {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 36px;
+  }
+  .tracker-head,
+  .tracker > .btn,
+  .tracker > .link-button,
+  .tracker > .notice {
+    grid-column: 1 / -1;
+  }
+  .tracker > label.tracker-field:has(textarea) {
+    grid-column: 2;
+    grid-row: 2 / span 3;
+  }
+  .tracker > label.tracker-field:has(textarea) .textarea {
+    height: 100%;
+    min-height: 180px;
+  }
+  .tracker > fieldset,
+  .tracker > label.tracker-field:not(:has(textarea)),
+  .favorite-toggle {
+    grid-column: 1;
   }
 }

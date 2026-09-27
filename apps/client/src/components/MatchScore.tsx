@@ -1,36 +1,108 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useReducedMotion } from "../lib/motion";
 
-/** Explains the match number wherever it appears prominently. */
-export function MatchInfo({ align }: { align?: "end" }) {
-  const ref = useRef<HTMLDetailsElement>(null);
+/**
+ * Explains the match number wherever it appears prominently. The explanation is
+ * rendered at the top level and kept inside the viewport, so scrolling sheets
+ * and narrow screens never crop it.
+ */
+export function MatchInfo() {
+  const button = useRef<HTMLButtonElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
+  const id = useId();
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const close = () => setPos(null);
+  const toggle = () => {
+    if (pos) return close();
+    const box = button.current!.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    const left = Math.max(
+      12,
+      Math.min(
+        box.left + box.width / 2 - width / 2,
+        window.innerWidth - width - 12,
+      ),
+    );
+    setPos({ left, top: box.bottom + 8 });
+  };
+  // Flip above the button when there is no room below.
+  useLayoutEffect(() => {
+    const el = popover.current;
+    if (!el || !pos || !button.current) return;
+    const height = el.offsetHeight;
+    if (pos.top + height > window.innerHeight - 12) {
+      const above = button.current.getBoundingClientRect().top - height - 8;
+      const top = Math.max(12, above);
+      if (top !== pos.top) setPos({ ...pos, top });
+    }
+  }, [pos]);
   useEffect(() => {
-    const close = (e: Event) => {
-      const details = ref.current;
-      if (details?.open && !details.contains(e.target as Node))
-        details.open = false;
+    if (!pos) return;
+    const onDown = (e: Event) => {
+      const target = e.target as Node;
+      if (
+        !popover.current?.contains(target) &&
+        !button.current?.contains(target)
+      )
+        close();
     };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
+    // Capture on window runs before the detail sheet's Escape handler, so Escape
+    // closes just this explanation, not the whole sheet.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      close();
+      button.current?.focus();
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [pos]);
   return (
-    <details className="info" ref={ref}>
-      <summary aria-label="How matching works">?</summary>
-      <div className={`info-pop ${align === "end" ? "align-end" : ""}`}>
-        <p>
-          <b>How well this title fits your taste, out of 100.</b>
-        </p>
-        <p>
-          It mostly weighs the tags you love, like, and avoid, then what your
-          ratings, favorites, and finished or dropped stories suggest, plus your
-          preferred length and platforms and VNDB’s own rating.
-        </p>
-        <p className="muted">
-          With little to go on, scores stay close to 50. They sharpen as you add
-          tags and rate what you read.
-        </p>
-      </div>
-    </details>
+    <>
+      <button
+        ref={button}
+        className="info-button"
+        aria-label="How matching works"
+        aria-expanded={Boolean(pos)}
+        aria-controls={pos ? id : undefined}
+        onClick={toggle}
+      >
+        ?
+      </button>
+      {pos &&
+        createPortal(
+          <div
+            ref={popover}
+            id={id}
+            role="note"
+            className="info-pop"
+            style={{ left: pos.left, top: pos.top }}
+          >
+            <p>
+              <b>How well this title fits your taste, out of 100.</b>
+            </p>
+            <p>
+              It mostly weighs the tags you love, like, and avoid, then what
+              your ratings, favorites, and finished or dropped stories suggest,
+              plus your preferred length and platforms and VNDB’s own rating.
+            </p>
+            <p className="muted">
+              With little to go on, scores stay close to 50. They sharpen as you
+              add tags and rate what you read.
+            </p>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -67,11 +139,9 @@ function useCountUp(target: number | undefined, reduced: boolean) {
  */
 export function MatchScore({
   value,
-  align,
   size = "large",
 }: {
   value?: number;
-  align?: "end";
   size?: "large" | "small";
 }) {
   const reduced = useReducedMotion();
@@ -114,7 +184,7 @@ export function MatchScore({
         </span>
       </div>
       <span className="label">
-        Match <MatchInfo align={align} />
+        Match <MatchInfo />
       </span>
     </div>
   );

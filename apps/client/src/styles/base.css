@@ -274,9 +274,11 @@ main {
   display: block;
   color: var(--accent);
 }
-.chip-remove svg {
+.chip-remove svg,
+.chip svg.chip-remove {
   width: 14px;
   height: 14px;
+  flex: none;
 }
 
 /* Fields */
@@ -338,6 +340,14 @@ main {
   height: 20px;
   flex: none;
   color: var(--ink-2);
+}
+.search-field button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
 }
 .search-field input {
   width: 100%;

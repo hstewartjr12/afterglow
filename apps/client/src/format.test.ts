@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { coverSrc } from "./lib/coverColor";
 import { clean, releaseYears } from "./lib/format";
 
 describe("VNDB description cleanup", () => {
@@ -34,5 +35,20 @@ describe("release year options", () => {
     const years = releaseYears(2030);
     expect(new Set(years).size).toBe(years.length);
     expect(years.slice(0, 6)).toEqual([2030, 2029, 2028, 2027, 2026, 2025]);
+  });
+});
+
+describe("cover sources", () => {
+  it("routes VNDB covers through the local API so their colors can be read", () => {
+    expect(coverSrc("https://t.vndb.org/cv/12/3412.jpg")).toBe(
+      "/api/cover?url=https%3A%2F%2Ft.vndb.org%2Fcv%2F12%2F3412.jpg",
+    );
+  });
+
+  it("leaves other images alone", () => {
+    expect(coverSrc("https://example.test/a.jpg")).toBe(
+      "https://example.test/a.jpg",
+    );
+    expect(coverSrc("/local.png")).toBe("/local.png");
   });
 });

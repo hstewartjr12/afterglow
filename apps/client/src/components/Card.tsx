@@ -3,6 +3,7 @@ import type { VnSummary } from "@afterglow/shared";
 import { activateOnKey, lengths, vndbRating } from "../lib/format";
 import { easeOut, prefersReducedMotion } from "../lib/motion";
 import { Cover } from "./Cover";
+import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 /** Tilt the cover toward the pointer and move its light sheen, like a holo card. */
 function tilt(e: React.PointerEvent<HTMLElement>) {
@@ -36,13 +37,15 @@ export function Card({
   index?: number;
 }) {
   const activate = () => onOpen(vn);
+  const tint = useCoverTint(vn.imageUrl);
   const year = vn.released?.slice(0, 4);
   const length = lengths[vn.length || 0];
   return (
     <m.article
       role="button"
       tabIndex={0}
-      className="vn-card"
+      className="vn-card tinted"
+      style={tintStyle(tint)}
       aria-label={match != null ? `${vn.title}, ${match}% match` : vn.title}
       onClick={activate}
       onKeyDown={activateOnKey(activate)}

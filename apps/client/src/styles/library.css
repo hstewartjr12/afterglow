@@ -288,3 +288,15 @@
     grid-area: progress;
   }
 }
+
+@media (max-width: 440px) {
+  /* Four stats side by side run their labels together on narrow phones. */
+  .folio {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 0;
+  }
+  .folio > div:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+}

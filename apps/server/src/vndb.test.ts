@@ -4,7 +4,7 @@ vi.mock("./db.js", () => ({
   sqlite: { execute: vi.fn(async () => ({ rows: [] })) },
 }));
 import { sqlite } from "./db.js";
-import { getVn, searchVns } from "./vndb.js";
+import { fetchCover, getVn, isCoverUrl, searchVns } from "./vndb.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -151,5 +151,35 @@ describe("requested fields", () => {
     expect(fieldsOf()).toEqual(
       expect.arrayContaining(["description", "aliases"]),
     );
+  });
+});
+
+describe("cover proxy", () => {
+  it("only accepts https URLs on VNDB's own hosts", () => {
+    expect(isCoverUrl("https://t.vndb.org/cv/12/34512.jpg")).toBe(true);
+    expect(isCoverUrl("https://vndb.org/cv/1.jpg")).toBe(true);
+    expect(isCoverUrl("http://t.vndb.org/cv/1.jpg")).toBe(false);
+    expect(isCoverUrl("https://t.vndb.org.evil.test/cv/1.jpg")).toBe(false);
+    expect(isCoverUrl("https://localhost:3001/api/library")).toBe(false);
+    expect(isCoverUrl("not a url")).toBe(false);
+  });
+
+  it("passes images through and rejects anything else", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(new Uint8Array([1, 2, 3]), {
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    const cover = await fetchCover("https://t.vndb.org/cv/1.jpg");
+    expect(cover.type).toBe("image/jpeg");
+    expect([...cover.body]).toEqual([1, 2, 3]);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("<html>", { headers: { "content-type": "text/html" } }),
+    );
+    await expect(
+      fetchCover("https://t.vndb.org/cv/2.jpg"),
+    ).rejects.toMatchObject({
+      upstream: true,
+    });
   });
 });

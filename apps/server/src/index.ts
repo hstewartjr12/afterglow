@@ -15,7 +15,14 @@ import {
 } from "@afterglow/shared";
 import { db } from "./db.js";
 import { appSettings, libraryEntries } from "./schema.js";
-import { getVn, personalizedVns, searchTags, searchVns } from "./vndb.js";
+import {
+  fetchCover,
+  getVn,
+  isCoverUrl,
+  personalizedVns,
+  searchTags,
+  searchVns,
+} from "./vndb.js";
 import { rankRecommendations } from "./recommend.js";
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -132,6 +139,22 @@ app.get("/api/vndb/vn/:id", async (req, res) => {
     return;
   }
   res.json(vn);
+});
+
+app.get("/api/cover", async (req, res) => {
+  const url = z.string().max(500).parse(req.query.url);
+  if (!isCoverUrl(url)) {
+    res.status(400).json({
+      error: "Only VNDB covers can be loaded",
+      code: "VALIDATION_ERROR",
+    });
+    return;
+  }
+  const cover = await fetchCover(url);
+  res.set("Content-Type", cover.type);
+  // Cover files never change at a given URL, so browsers may keep them for a week.
+  res.set("Cache-Control", "public, max-age=604800, immutable");
+  res.send(cover.body);
 });
 
 app.get("/api/library", async (_req, res) => {

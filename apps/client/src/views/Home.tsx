@@ -23,6 +23,7 @@ import { useToast } from "../components/Toasts";
 import { Motes } from "../components/Motes";
 import { easeOut } from "../lib/motion";
 import { picksHeading } from "../lib/timeOfDay";
+import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 const STRIP_SIZE = 8;
 
@@ -141,11 +142,16 @@ export function Home({
     lib.data?.length === 0;
   const alt = top && altTitle(top.vn);
   const heading = picksHeading();
+  const heroTint = useCoverTint(top?.vn.imageUrl);
   return (
     <main className="home">
       {newcomer && <Onboarding prefs={pref.data!} />}
       {top ? (
-        <section className="hero" aria-labelledby="hero-title">
+        <section
+          className="hero tinted"
+          style={tintStyle(heroTint)}
+          aria-labelledby="hero-title"
+        >
           <div className="hero-sky" aria-hidden="true">
             <AnimatePresence initial={false}>
               <m.div
@@ -237,7 +243,7 @@ export function Home({
             </m.div>
           </AnimatePresence>
           <aside className="hero-score">
-            <MatchScore value={top.matchPercent} align="end" />
+            <MatchScore value={top.matchPercent} />
             <p className="muted">
               {lib.data?.length
                 ? `${plural(lib.data.length, "story", "stories")} in your library`

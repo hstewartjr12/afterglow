@@ -485,6 +485,14 @@ describe("redesign behaviors", () => {
     expect(platform).toHaveValue("");
   });
 
+  it("returns to the top of the page when changing pages", async () => {
+    const scroll = vi.spyOn(window, "scrollTo");
+    start();
+    fireEvent.click(screen.getByRole("button", { name: "Library" }));
+    expect(scroll).toHaveBeenCalledWith(0, 0);
+    scroll.mockRestore();
+  });
+
   it("labels the spoiler tag control and explains hidden tags", async () => {
     start();
     const dialog = await openStory();

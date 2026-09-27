@@ -75,8 +75,11 @@ export default function App() {
       !window.confirm("Leave without saving your taste profile changes?")
     )
       return false;
-    if (next === view || prefersReducedMotion()) setView(next);
-    else setPending(next);
+    if (next === view) return true;
+    if (prefersReducedMotion()) {
+      setView(next);
+      window.scrollTo(0, 0);
+    } else setPending(next);
     return true;
   };
   const reveal = () => {

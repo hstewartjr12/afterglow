@@ -31,6 +31,7 @@ import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
 import { easeOut, prefersReducedMotion } from "../lib/motion";
+import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 type Tracker = Omit<LibraryInput, "vn">;
 const emptyTracker: Tracker = {
@@ -229,6 +230,7 @@ export function Detail({
       }),
     });
   const alt = altTitle(d);
+  const tint = useCoverTint(d.imageUrl);
   const synopsisLoading = detail.isPlaceholderData && !detail.isError;
   const year = d.released?.slice(0, 4);
   const saveState = save.isPending
@@ -255,7 +257,8 @@ export function Detail({
       <m.article
         ref={modalRef}
         tabIndex={-1}
-        className="sheet detail-sheet"
+        className="sheet detail-sheet tinted"
+        style={tintStyle(tint)}
         initial={{ y: 24 }}
         animate={{ y: 0 }}
         role="dialog"

@@ -117,7 +117,7 @@ export function Header({
         {views.map(({ view: v, label }, i) => (
           <button
             key={v}
-            className={view === v ? "active" : ""}
+            className={`nav-link ${view === v ? "active" : ""}`}
             aria-current={view === v ? "page" : undefined}
             onClick={() => go(v)}
           >
