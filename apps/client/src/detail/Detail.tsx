@@ -30,7 +30,7 @@ import { VnBox } from "../components/VnBox";
 import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
-import { easeOut } from "../lib/motion";
+import { easeOut, prefersReducedMotion } from "../lib/motion";
 
 type Tracker = Omit<LibraryInput, "vn">;
 const emptyTracker: Tracker = {
@@ -279,7 +279,9 @@ export function Detail({
           <X />
         </button>
         <aside className="detail-cover">
-          <m.div layoutId={`cover-${d.id}`}>
+          <m.div
+            layoutId={prefersReducedMotion() ? undefined : `cover-${d.id}`}
+          >
             <Cover vn={d} eager className="has-shadow" />
           </m.div>
         </aside>

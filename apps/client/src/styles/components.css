@@ -9,6 +9,14 @@
   height: 76px;
   padding: 0 var(--gutter);
   border-bottom: 1px solid var(--line);
+}
+.site-header::before {
+  /* The frosted backdrop lives on a layer of its own: backdrop-filter on the
+     header itself would trap the fixed-position mobile drawer inside it. */
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(10px);
 }

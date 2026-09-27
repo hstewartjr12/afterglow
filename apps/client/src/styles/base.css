@@ -118,6 +118,7 @@ main {
   font-size: var(--step-5);
   font-weight: 700;
   line-height: 0.95;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 .page-head .jp {

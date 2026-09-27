@@ -65,6 +65,12 @@ function SearchForm({
         aria-label="Search titles and aliases"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            onSearch(query);
+          }
+        }}
         placeholder="Search titles…"
       />
     </form>

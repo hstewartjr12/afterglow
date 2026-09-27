@@ -42,28 +42,28 @@ describe("Afterglow shell", () => {
   it("renders the editorial brand and primary navigation", () => {
     renderApp();
     expect(
-      screen.getByRole("button", { name: "AFTERGLOW アフターグロウ" }),
+      screen.getByRole("button", { name: "Afterglow アフターグロウ" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "DISCOVER" }),
+      screen.getByRole("button", { name: "Discover" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "MY TASTE" }),
+      screen.getByRole("button", { name: "My taste" }),
     ).toBeInTheDocument();
   });
   it("sends Discover selections to the search API", async () => {
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "DISCOVER" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discover" }));
     fireEvent.change(
-      await screen.findByRole("combobox", { name: "PLATFORM" }),
+      await screen.findByRole("combobox", { name: "Platform" }),
       {
         target: { value: "swi" },
       },
     );
-    fireEvent.change(screen.getByRole("combobox", { name: "LENGTH" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Length" }), {
       target: { value: "2" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "MINIMUM RATING" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Minimum rating" }), {
       target: { value: "8" },
     });
     await waitFor(() =>
@@ -93,7 +93,7 @@ describe("Afterglow shell", () => {
       return { ok: true, status: 200, json: async () => body } as Response;
     });
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "MY TASTE" }));
+    fireEvent.click(screen.getByRole("button", { name: "My taste" }));
     expect(
       await screen.findByRole("button", {
         name: "Remove Mystery from love tags",
@@ -108,7 +108,7 @@ describe("Afterglow shell", () => {
     fireEvent.change(input, { target: { value: "clannad" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(
-      await screen.findByRole("heading", { name: "DISCOVER A STORY" }),
+      await screen.findByRole("heading", { name: "Discover a story" }),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(

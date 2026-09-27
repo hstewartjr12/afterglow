@@ -1,21 +1,38 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import * as m from "motion/react-m";
 import { Search, X } from "lucide-react";
 import type { Preferences, VndbTag } from "@afterglow/shared";
 import { api } from "../api";
 import { useModal } from "../useModal";
+import { plural, tagWeights, weightLabel } from "../lib/format";
 import { ErrorState } from "../components/status";
+
+const categories = [
+  { id: "", label: "All categories" },
+  { id: "cont", label: "Content" },
+  { id: "ero", label: "Sexual content" },
+  { id: "tech", label: "Technical" },
+];
+const categoryLabel: Record<string, string> = {
+  cont: "Content",
+  ero: "Sexual",
+  tech: "Technical",
+};
+
 export function TagIndex({
   onClose,
   onPick,
   selected,
   initialCategory,
+  focusWeight,
 }: {
   onClose: () => void;
   onPick: (t: VndbTag, w: number) => void;
   selected: Preferences["tagPreferences"];
   initialCategory: string;
+  /** Opened from a group's "Add tag": that choice leads each row. */
+  focusWeight?: number;
 }) {
   const modalRef = useModal<HTMLElement>();
   const [term, setTerm] = useState("");
@@ -32,7 +49,14 @@ export function TagIndex({
   const tags = useQuery({
     queryKey: ["tags", q, page, category],
     queryFn: () => api.tags(q, page, category),
+    placeholderData: keepPreviousData,
   });
+  const focus = weightLabel(focusWeight);
+  // The focused choice first, so "Add tag" under Like reads Like · Love · Avoid.
+  const choices = focus
+    ? [focus, ...tagWeights.filter((w) => w !== focus)]
+    : tagWeights;
+  const currentPage = tags.data?.page ?? page;
   return (
     <m.div
       className="modal-backdrop"
@@ -44,26 +68,35 @@ export function TagIndex({
       <m.section
         ref={modalRef}
         tabIndex={-1}
-        className="tag-index"
-        initial={{ y: 25 }}
+        className="sheet tag-index"
+        initial={{ y: 24 }}
         animate={{ y: 0 }}
         role="dialog"
         aria-modal="true"
         aria-label="VNDB tag index"
         onKeyDown={(e) => e.key === "Escape" && onClose()}
       >
-        <header>
-          <h2>VNDB TAG INDEX</h2>
-          <span>
-            VNDB RECORDS: {tags.data?.recordCount?.toLocaleString() ?? "—"}
-          </span>
-          <span>SHOWING {tags.data?.usableOnPage ?? 0} USABLE TAGS</span>
-          <button aria-label="Close tag index" onClick={onClose}>
+        <header className="tag-index-head">
+          <div>
+            <h2>Tag index</h2>
+            <p className="muted">
+              {focus
+                ? `Adding to ${focus.label}. You can also choose another group per tag.`
+                : tags.data
+                  ? `${plural(tags.data.recordCount, "tag")} from VNDB`
+                  : "Every tag from VNDB"}
+            </p>
+          </div>
+          <button
+            className="icon-button"
+            aria-label="Close tag index"
+            onClick={onClose}
+          >
             <X />
           </button>
         </header>
-        <label className="index-search">
-          <Search />
+        <label className="search-field index-search">
+          <Search aria-hidden="true" />
           <input
             aria-label="Search VNDB tags"
             maxLength={100}
@@ -72,76 +105,47 @@ export function TagIndex({
             placeholder="Search every VNDB tag…"
           />
         </label>
-        <div className="index-body">
-          <aside>
-            <b>FILTER BY CATEGORY</b>
+        <div
+          className="chips index-categories"
+          role="group"
+          aria-label="Category"
+        >
+          {categories.map((c) => (
             <button
-              className={category === "" ? "active" : ""}
+              key={c.id}
+              className="chip"
+              aria-pressed={category === c.id}
               onClick={() => {
-                setCategory("");
+                setCategory(c.id);
                 setPage(1);
               }}
             >
-              All categories
+              {c.label}
             </button>
-            <button
-              className={category === "cont" ? "active" : ""}
-              onClick={() => {
-                setCategory("cont");
-                setPage(1);
-              }}
-            >
-              Content
-            </button>
-            <button
-              className={category === "ero" ? "active" : ""}
-              onClick={() => {
-                setCategory("ero");
-                setPage(1);
-              }}
-            >
-              Sexual content
-            </button>
-            <button
-              className={category === "tech" ? "active" : ""}
-              onClick={() => {
-                setCategory("tech");
-                setPage(1);
-              }}
-            >
-              Technical
-            </button>
-            <hr />
-            <b>SPOILER POLICY</b>
-            <p>
-              Tag descriptions are shown. VN-specific spoiler tags remain
-              hidden.
+          ))}
+        </div>
+        <div
+          className={`tag-results ${tags.isPlaceholderData ? "is-refreshing" : ""}`}
+        >
+          {tags.isError ? (
+            <ErrorState
+              message={tags.error.message}
+              retry={() => void tags.refetch()}
+            />
+          ) : tags.isLoading ? (
+            <p className="index-empty" role="status">
+              Consulting the index…
             </p>
-          </aside>
-          <div className="tag-results">
-            <div className="tag-columns">
-              <span>TAG NAME / DESCRIPTION</span>
-              <span>TYPE</span>
-              <span>USAGE</span>
-              <span>ACTIONS</span>
-            </div>
-            {tags.isError ? (
-              <ErrorState
-                message={tags.error.message}
-                retry={() => void tags.refetch()}
-              />
-            ) : tags.isLoading ? (
-              <p className="index-loading" role="status">
-                Consulting the index…
-              </p>
-            ) : !tags.data?.results.length ? (
-              <p className="index-loading">
-                No tags match. Try another search or category.
-              </p>
-            ) : (
-              tags.data.results.map((tag) => (
-                <article key={tag.id}>
-                  <div>
+          ) : !tags.data?.results.length ? (
+            <p className="index-empty">
+              No tags match. Try another search or category.
+            </p>
+          ) : (
+            tags.data.results.map((tag) => {
+              const current = selected.find((x) => x.id === tag.id)?.weight;
+              return (
+                <article key={tag.id} className="tag-row">
+                  <div className="tag-row-text">
                     <h3>{tag.name}</h3>
                     <p>
                       {tag.description ||
@@ -149,50 +153,42 @@ export function TagIndex({
                         "No description available."}
                     </p>
                   </div>
-                  <span>
-                    {tag.category === "cont"
-                      ? "CONTENT"
-                      : tag.category === "ero"
-                        ? "SEXUAL"
-                        : "TECH"}
+                  <span className="tag-row-meta">
+                    <span className="label">{categoryLabel[tag.category]}</span>
+                    <span className="mono">{plural(tag.vnCount, "title")}</span>
                   </span>
-                  <b>{tag.vnCount.toLocaleString()}</b>
-                  <div>
-                    {([3, 1, -3] as const).map((w) => (
+                  <div className="tag-row-actions">
+                    {choices.map(({ weight: w, label }) => (
                       <button
                         key={w}
-                        aria-pressed={
-                          selected.find((x) => x.id === tag.id)?.weight === w
-                        }
-                        className={
-                          selected.find((x) => x.id === tag.id)?.weight === w
-                            ? "selected"
-                            : ""
-                        }
+                        className={`tag-choice ${focus?.weight === w ? "is-focus" : ""}`}
+                        aria-pressed={current === w}
                         onClick={() => onPick(tag, w)}
                       >
-                        {w === 3 ? "LOVE" : w === 1 ? "LIKE" : "AVOID"}
+                        {label}
                       </button>
                     ))}
                   </div>
                 </article>
-              ))
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
-        <footer>
-          <span>PAGE {tags.data?.page ?? page}</span>
+        <footer className="tag-index-foot">
+          <span className="mono">Page {currentPage}</span>
           <button
-            disabled={(tags.data?.page ?? page) === 1 || tags.isFetching}
-            onClick={() => setPage(Math.max(1, (tags.data?.page ?? page) - 1))}
+            className="btn btn-small"
+            disabled={currentPage === 1 || tags.isFetching}
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
           >
-            ← PREVIOUS
+            ← Previous
           </button>
           <button
+            className="btn btn-small"
             disabled={!tags.data?.more || tags.isFetching}
-            onClick={() => setPage((tags.data?.page ?? page) + 1)}
+            onClick={() => setPage(currentPage + 1)}
           >
-            NEXT →
+            Next →
           </button>
         </footer>
       </m.section>

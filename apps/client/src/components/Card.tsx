@@ -56,7 +56,11 @@ export function Card({
         delay: Math.min(index, 12) * 0.045,
       }}
     >
-      <m.div layoutId={`cover-${vn.id}`} className="card-cover">
+      <m.div
+        // The cover flies into the detail sheet; decorative, so off for reduced motion.
+        layoutId={prefersReducedMotion() ? undefined : `cover-${vn.id}`}
+        className="card-cover"
+      >
         <Cover vn={vn} />
       </m.div>
       <div className="card-body">
