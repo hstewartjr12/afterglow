@@ -199,7 +199,7 @@ app.get("/api/recommendations", async (_req, res) => {
     positiveIds,
     prefs.useSpoilerTagsInRecommendations,
   );
-  res.json(rankRecommendations(candidates, library, prefs));
+  res.json(rankRecommendations(candidates, library, prefs, true, 24));
 });
 
 app.post("/api/recommendations/score", async (req, res) => {

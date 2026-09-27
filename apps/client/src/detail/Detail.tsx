@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
-import { ArrowRight, X } from "lucide-react";
+import { ExternalLink, Heart, X } from "lucide-react";
 import type {
   LibraryEntry,
   LibraryInput,
@@ -14,11 +14,50 @@ import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { useModal } from "../useModal";
 import { invalidateMatches } from "../queries";
-import { lengths, clean, platformName, today } from "../lib/format";
-import { Cover } from "../components/Cover";
-import { Stamp } from "../components/Card";
+import {
+  altTitle,
+  clean,
+  lengths,
+  platformName,
+  statusLabel,
+  today,
+  vndbRating,
+  weightLabel,
+} from "../lib/format";
+import { Cover, Glow } from "../components/Cover";
+import { MatchScore } from "../components/MatchScore";
+import { VnBox } from "../components/VnBox";
 import { ErrorState } from "../components/status";
+import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
+
+type Tracker = Omit<LibraryInput, "vn">;
+const emptyTracker: Tracker = {
+  status: "backlog",
+  personalRating: null,
+  favorite: false,
+  progress: 0,
+  notes: "",
+  startedAt: null,
+  completedAt: null,
+};
+const trackerOf = (entry: Partial<LibraryEntry>): Tracker => ({
+  status: entry.status ?? "backlog",
+  personalRating: entry.personalRating ?? null,
+  favorite: entry.favorite ?? false,
+  progress: entry.progress ?? 0,
+  notes: entry.notes ?? "",
+  startedAt: entry.startedAt ?? null,
+  completedAt: entry.completedAt ?? null,
+});
+const keyOf = (tracker: Tracker) => JSON.stringify(trackerOf(tracker));
+const spoilerOptions = [
+  { level: 0, label: "Hide" },
+  { level: 1, label: "Minor" },
+  { level: 2, label: "All" },
+] as const;
+const TAG_PREVIEW = 18;
+
 export function Detail({
   vn,
   onClose,
@@ -30,6 +69,7 @@ export function Detail({
 }) {
   const modalRef = useModal<HTMLElement>();
   const qc = useQueryClient();
+  const toast = useToast();
   const detail = useQuery({
     queryKey: ["detail", vn.id],
     queryFn: () => api.detail(vn.id),
@@ -45,36 +85,53 @@ export function Detail({
     queryFn: api.preferences,
   });
   const current = lib.data?.find((x) => x.vndbId === vn.id);
-  const [form, setForm] = useState<Partial<LibraryEntry>>({});
+  const [form, setForm] = useState<Tracker>(emptyTracker);
+  // The last tracker state the server has, so we know what still needs saving.
+  const [savedKey, setSavedKey] = useState(keyOf(emptyTracker));
   const [allTags, setAllTags] = useState(false);
   const [spoilerLevel, setSpoilerLevel] = useState<0 | 1 | 2>(0);
   const [activeTag, setActiveTag] = useState<{
     id: string;
     anchor: HTMLElement;
   } | null>(null);
-  const [savedJson, setSavedJson] = useState<string | null>(null);
   const initialized = useRef(false);
   useEffect(() => {
     if (lib.isSuccess && !initialized.current) {
       initialized.current = true;
-      if (current) setForm(current);
+      if (current) {
+        setForm(trackerOf(current));
+        setSavedKey(keyOf(trackerOf(current)));
+      }
     }
   }, [current, lib.isSuccess]);
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (activeTag) setActiveTag(null);
-      else onClose();
-    };
-    document.addEventListener("keydown", handleEscape, true);
-    return () => document.removeEventListener("keydown", handleEscape, true);
-  }, [activeTag, onClose]);
+
+  const d = detail.data ?? (vn as VnDetail);
+  const input: LibraryInput = { vn: d, ...form };
+  const formKey = keyOf(form);
+  const inLibrary = Boolean(current);
+  const dirty = formKey !== savedKey;
+
   const save = useMutation({
-    mutationFn: (input: LibraryInput) => api.saveLibrary(vn.id, input),
-    onSuccess: (_data, input) => {
-      setSavedJson(JSON.stringify(input));
+    mutationFn: (next: LibraryInput) => api.saveLibrary(vn.id, next),
+    onSuccess: (_data, next) => {
+      if (!inLibrary) toast(`Added ${vn.title} to your library`);
+      setSavedKey(keyOf(next));
+      qc.invalidateQueries({ queryKey: ["library"] });
+      invalidateMatches(qc);
+    },
+  });
+  // Titles already in the library save themselves shortly after each change.
+  useEffect(() => {
+    if (!inLibrary || !dirty || save.isPending || save.isError) return;
+    const timer = setTimeout(() => save.mutate(input), 700);
+    return () => clearTimeout(timer);
+    // `input` is derived from formKey; listing it would restart the timer every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inLibrary, dirty, formKey, save.isPending, save.isError]);
+
+  const restore = useMutation({
+    mutationFn: (entry: LibraryInput) => api.saveLibrary(vn.id, entry),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["library"] });
       invalidateMatches(qc);
     },
@@ -82,9 +139,14 @@ export function Detail({
   const remove = useMutation({
     mutationFn: () => api.removeLibrary(vn.id),
     onSuccess: () => {
+      const removed = input;
       qc.invalidateQueries({ queryKey: ["library"] });
       invalidateMatches(qc);
       onClose();
+      toast(`Removed ${vn.title} from your library`, {
+        label: "Undo",
+        run: () => restore.mutate(removed),
+      });
     },
   });
   const taste = useMutation({
@@ -94,7 +156,31 @@ export function Detail({
       invalidateMatches(qc);
     },
   });
-  const d = detail.data ?? (vn as VnDetail);
+
+  const requestClose = () => {
+    if (inLibrary && dirty && !save.isError) save.mutate(input);
+    else if (
+      !inLibrary &&
+      dirty &&
+      !window.confirm(`Discard your tracker notes for ${vn.title}?`)
+    )
+      return;
+    onClose();
+  };
+  const closeRef = useRef(requestClose);
+  closeRef.current = requestClose;
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeTag) setActiveTag(null);
+      else closeRef.current();
+    };
+    document.addEventListener("keydown", handleEscape, true);
+    return () => document.removeEventListener("keydown", handleEscape, true);
+  }, [activeTag]);
+
   const visibleTags = d.tags.filter((t) => t.spoiler <= spoilerLevel);
   const hiddenTags = d.tags.length - visibleTags.length;
   const setSpoilers = (level: 0 | 1 | 2) => {
@@ -117,17 +203,32 @@ export function Detail({
     });
     setActiveTag(null);
   };
-  const input: LibraryInput = {
-    vn: d,
-    status: form.status || "backlog",
-    personalRating: form.personalRating ?? null,
-    favorite: form.favorite ?? false,
-    progress: form.progress ?? 0,
-    notes: form.notes ?? "",
-    startedAt: form.startedAt ?? null,
-    completedAt: form.completedAt ?? null,
+  const update = (patch: Partial<Tracker>) => {
+    // A new edit is a fresh attempt, so let autosave try again after a failure.
+    if (save.isError) save.reset();
+    setForm((f) => ({ ...f, ...patch }));
   };
-  const submit = () => save.mutate(input);
+  const setStatus = (status: Tracker["status"]) =>
+    update({
+      status,
+      // Record reading dates the first time a story is started or finished.
+      ...((status === "playing" || status === "completed") &&
+        !form.startedAt && { startedAt: today() }),
+      ...(status === "completed" && {
+        progress: 100,
+        completedAt: form.completedAt ?? today(),
+      }),
+    });
+  const alt = altTitle(d);
+  const year = d.released?.slice(0, 4);
+  const saveState = save.isPending
+    ? "Saving…"
+    : save.isError
+      ? "Not saved"
+      : dirty
+        ? "Unsaved changes"
+        : "All changes saved";
+
   return (
     <m.div
       className="modal-backdrop"
@@ -137,15 +238,15 @@ export function Detail({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
           if (activeTag) setActiveTag(null);
-          else onClose();
+          else requestClose();
         }
       }}
     >
       <m.article
         ref={modalRef}
         tabIndex={-1}
-        className="detail-sheet"
-        initial={{ y: 30 }}
+        className="sheet detail-sheet"
+        initial={{ y: 24 }}
         animate={{ y: 0 }}
         role="dialog"
         aria-modal="true"
@@ -159,141 +260,140 @@ export function Detail({
           }
         }}
       >
-        <button className="close" aria-label="Close details" onClick={onClose}>
+        <Glow vn={d} />
+        <button
+          className="sheet-close icon-button"
+          aria-label="Close details"
+          onClick={requestClose}
+        >
           <X />
         </button>
         <aside className="detail-cover">
-          <Cover vn={d} eager />
-          <dl>
-            <div>
-              <dt>RELEASED</dt>
-              <dd>{d.released || "—"}</dd>
-            </div>
-            <div>
-              <dt>LENGTH</dt>
-              <dd>{lengths[d.length || 0]}</dd>
-            </div>
-            <div>
-              <dt>PLATFORM</dt>
-              <dd>
-                {d.platforms.slice(0, 5).map(platformName).join(", ") || "—"}
-              </dd>
-            </div>
-            <div>
-              <dt>VNDB ID</dt>
-              <dd>{d.id}</dd>
-            </div>
-          </dl>
+          <Cover vn={d} eager className="has-shadow" />
         </aside>
+        <header className="detail-head">
+          <h1>{d.title}</h1>
+          {alt && <p className="detail-alt jp">{alt}</p>}
+          <p className="detail-meta">
+            {[
+              year,
+              lengths[d.length || 0],
+              d.platforms.slice(0, 4).map(platformName).join(", "),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          <div className="detail-scores">
+            <MatchScore value={currentMatch?.matchPercent} />
+            <div className="score">
+              <span className="score-value plain">
+                {vndbRating(d.rating)}
+                <small>/10</small>
+              </span>
+              <span className="label">VNDB rating</span>
+            </div>
+            <a
+              className="vndb-link"
+              href={`https://vndb.org/${d.id}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View on VNDB <ExternalLink aria-hidden="true" />
+            </a>
+          </div>
+        </header>
         <section className="detail-copy">
-          <header>
-            <div>
-              <h1>{d.title}</h1>
-              <p>{d.alttitle}</p>
-            </div>
-            <div className="detail-scores">
-              <div>
-                <b>AFTERGLOW MATCH</b>
-                <Stamp>
-                  {currentMatch?.matchPercent ?? "—"}
-                  <small>/100</small>
-                </Stamp>
-              </div>
-              <div>
-                <b>VNDB RATING</b>
-                <Stamp>
-                  {d.rating ? (d.rating / 10).toFixed(1) : "—"}
-                  <small>/10</small>
-                </Stamp>
-              </div>
-            </div>
-          </header>
           {detail.isError && (
             <ErrorState
               message={detail.error.message}
               retry={() => void detail.refetch()}
             />
           )}
-          <div className="synopsis">
-            <b>SYNOPSIS</b>
+          <section className="synopsis" aria-labelledby="synopsis-title">
+            <h2 id="synopsis-title" className="label label-accent">
+              Synopsis
+            </h2>
             <p>
               {detail.isPlaceholderData && !detail.isError
                 ? "Loading synopsis…"
                 : clean(d.description)}
             </p>
-          </div>
-          <div className="detail-tags">
-            <div className="detail-tags-heading">
-              <div>
-                <b>TAGS ({visibleTags.length} SHOWN)</b>
-                <small>
-                  {hiddenTags
-                    ? `${hiddenTags} SPOILER TAGS HIDDEN`
-                    : "ALL TAGS SHOWN"}
-                </small>
-              </div>
-              <div
-                className="spoiler-level"
-                role="group"
-                aria-label="Visible spoiler tag level"
-              >
-                {(
-                  [
-                    { level: 0, label: "SAFE" },
-                    { level: 1, label: "MINOR" },
-                    { level: 2, label: "ALL" },
-                  ] as const
-                ).map((option) => (
-                  <button
-                    key={option.level}
-                    aria-pressed={spoilerLevel === option.level}
-                    onClick={() => setSpoilers(option.level)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+          </section>
+          <section className="fit" aria-labelledby="fit-title">
+            <h2 id="fit-title" className="label label-accent">
+              Why it fits you
+            </h2>
+            <VnBox
+              reasons={
+                fit.data?.reasons ??
+                recommendation?.reasons ?? [
+                  fit.isLoading
+                    ? "Calculating your match…"
+                    : "No personalized signals matched this title yet.",
+                ]
+              }
+            />
+          </section>
+          <section className="detail-tags" aria-labelledby="tags-title">
+            <div className="detail-tags-head">
+              <h2 id="tags-title" className="label label-accent">
+                Tags <span className="muted">({visibleTags.length})</span>
+              </h2>
+              <div className="spoiler-control">
+                <span className="label" id="spoiler-label">
+                  Spoiler tags
+                </span>
+                <div
+                  className="segmented"
+                  role="group"
+                  aria-labelledby="spoiler-label"
+                >
+                  {spoilerOptions.map((option) => (
+                    <button
+                      key={option.level}
+                      aria-pressed={spoilerLevel === option.level}
+                      onClick={() => setSpoilers(option.level)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <div>
+            <p className="tags-hint">
+              {hiddenTags
+                ? `${hiddenTags} ${hiddenTags === 1 ? "tag gives" : "tags give"} away plot points and ${hiddenTags === 1 ? "is" : "are"} hidden. `
+                : spoilerLevel
+                  ? "Spoiler tags are visible. "
+                  : ""}
+              Bars show how strongly each tag applies. Rate a tag to teach
+              Afterglow your taste.
+            </p>
+            <div className="tag-list">
               {visibleTags
-                .slice(0, allTags ? visibleTags.length : 18)
+                .slice(0, allTags ? visibleTags.length : TAG_PREVIEW)
                 .map((t) => {
-                  const choice = pref.data?.tagPreferences.find(
-                    (x) => x.id === t.id,
-                  )?.weight;
-                  const choiceLabel =
-                    choice === 3
-                      ? "LOVE"
-                      : choice === 1
-                        ? "LIKE"
-                        : choice === -3
-                          ? "AVOID"
-                          : null;
+                  const choice = weightLabel(
+                    pref.data?.tagPreferences.find((x) => x.id === t.id)
+                      ?.weight,
+                  );
+                  const isOpen = activeTag?.id === t.id;
                   return (
-                    <article
+                    <div
                       data-tag-id={t.id}
-                      className={`detail-tag spoiler-${t.spoiler} ${choiceLabel ? "is-rated" : ""} ${activeTag?.id === t.id ? "is-open" : ""}`}
+                      className={`detail-tag ${choice ? `is-${choice.label.toLowerCase()}` : ""} ${isOpen ? "is-open" : ""}`}
                       key={t.id}
                     >
-                      <button
-                        className="tag-summary"
-                        title={t.name}
-                        aria-expanded={activeTag?.id === t.id}
-                        aria-label={`${t.name}, relevance ${t.rating.toFixed(1)}${choiceLabel ? `, marked ${choiceLabel.toLowerCase()}` : ""}. Tune tag`}
-                        onClick={(e) =>
-                          setActiveTag(
-                            activeTag?.id === t.id
-                              ? null
-                              : { id: t.id, anchor: e.currentTarget },
-                          )
-                        }
+                      <span className="tag-name">
+                        {t.name}
+                        {t.spoiler > 0 && (
+                          <mark>{t.spoiler === 1 ? "Minor" : "Major"}</mark>
+                        )}
+                      </span>
+                      <span
+                        className="tag-strength"
+                        title={`Applies ${t.rating.toFixed(1)} out of 3`}
                       >
-                        <em>
-                          <span>{t.name}</span>
-                          {t.spoiler > 0 && (
-                            <mark>{t.spoiler === 1 ? "MINOR" : "MAJOR"}</mark>
-                          )}
-                        </em>
                         <i>
                           <u
                             style={{
@@ -301,16 +401,28 @@ export function Detail({
                             }}
                           />
                         </i>
-                        <small>{t.rating.toFixed(1)}</small>
-                        <b
-                          className={
-                            choiceLabel ? choiceLabel.toLowerCase() : ""
-                          }
-                        >
-                          {choiceLabel ?? "+ TUNE"}
-                        </b>
+                      </span>
+                      <button
+                        className="tag-rate"
+                        aria-expanded={isOpen}
+                        aria-label={`Rate ${t.name}${choice ? ` (${choice.past.toLowerCase()})` : ""}`}
+                        onClick={(e) =>
+                          setActiveTag(
+                            isOpen
+                              ? null
+                              : { id: t.id, anchor: e.currentTarget },
+                          )
+                        }
+                      >
+                        {choice ? (
+                          choice.past
+                        ) : (
+                          <>
+                            <Heart aria-hidden="true" /> Rate
+                          </>
+                        )}
                       </button>
-                    </article>
+                    </div>
                   );
                 })}
             </div>
@@ -334,148 +446,150 @@ export function Detail({
                   );
                 })()}
             </AnimatePresence>
-            {visibleTags.length > 18 && (
-              <button onClick={() => setAllTags(!allTags)}>
-                {allTags ? "SHOW FEWER" : `VIEW ALL ${visibleTags.length} TAGS`}{" "}
-                <ArrowRight />
+            {visibleTags.length > TAG_PREVIEW && (
+              <button
+                className="btn btn-small tags-more"
+                onClick={() => setAllTags(!allTags)}
+              >
+                {allTags ? "Show fewer" : `Show all ${visibleTags.length} tags`}
               </button>
             )}
-          </div>
-          {taste.isError && <ErrorState message={taste.error.message} />}
-          <div className="fit">
-            <b>WHY IT FITS YOU</b>
-            {(
-              fit.data?.reasons ??
-              recommendation?.reasons ?? [
-                fit.isLoading
-                  ? "Calculating your match…"
-                  : "No personalized signals matched this title yet.",
-              ]
-            ).map((r, i) => (
-              <p key={r}>
-                <span>0{i + 1}</span>
-                {r}
-              </p>
-            ))}
-          </div>
+            {taste.isError && <ErrorState message={taste.error.message} />}
+          </section>
         </section>
-        <aside className="tracker">
-          <h2>YOUR TRACKER</h2>
-          <label>
-            STATUS
-            <select
-              value={form.status || "backlog"}
-              onChange={(e) => {
-                const status = e.target.value as LibraryEntry["status"];
-                // Record reading dates the first time a story is started or finished.
-                setForm({
-                  ...form,
-                  status,
-                  ...((status === "playing" || status === "completed") &&
-                    !form.startedAt && { startedAt: today() }),
-                  ...(status === "completed" && {
-                    progress: 100,
-                    completedAt: form.completedAt ?? today(),
-                  }),
-                });
-              }}
-            >
+        <aside className="tracker" aria-labelledby="tracker-title">
+          <div className="tracker-head">
+            <h2 id="tracker-title">Your tracker</h2>
+            {inLibrary && (
+              <span
+                className={`save-state ${save.isError ? "is-error" : ""}`}
+                role="status"
+              >
+                {saveState}
+              </span>
+            )}
+          </div>
+          <fieldset className="tracker-field">
+            <legend className="label">Status</legend>
+            <div className="chips">
               {libraryStatuses.map((s) => (
-                <option key={s}>{s}</option>
+                <label className="chip" key={s}>
+                  <input
+                    type="radio"
+                    name="status"
+                    value={s}
+                    checked={form.status === s}
+                    onChange={() => setStatus(s)}
+                  />
+                  {statusLabel(s)}
+                </label>
               ))}
-            </select>
-          </label>
-          {(form.startedAt || form.completedAt) && (
-            <p className="reading-dates">
-              {form.startedAt && <>STARTED {form.startedAt.slice(0, 10)}</>}
-              {form.startedAt && form.completedAt && " · "}
-              {form.completedAt && (
-                <>FINISHED {form.completedAt.slice(0, 10)}</>
-              )}
-            </p>
-          )}
-          <label>
-            YOUR RATING{" "}
-            <b>
-              {form.personalRating == null
-                ? "UNRATED"
-                : `${form.personalRating}/10`}
-            </b>
-            <input
-              type="range"
-              min="0"
-              max="10"
-              aria-valuetext={
-                form.personalRating == null
+            </div>
+            {(form.startedAt || form.completedAt) && (
+              <p className="reading-dates">
+                {form.startedAt && <>Started {form.startedAt.slice(0, 10)}</>}
+                {form.startedAt && form.completedAt && " · "}
+                {form.completedAt && (
+                  <>Finished {form.completedAt.slice(0, 10)}</>
+                )}
+              </p>
+            )}
+          </fieldset>
+          <fieldset className="tracker-field">
+            <legend className="label">
+              Your rating{" "}
+              <b>
+                {form.personalRating == null
                   ? "Unrated"
-                  : `${form.personalRating} out of 10`
-              }
-              value={form.personalRating ?? 0}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  personalRating: Number(e.target.value) || null,
-                })
-              }
-            />
-          </label>
-          {form.personalRating != null && (
-            <button
-              className="clear-rating"
-              onClick={() => setForm({ ...form, personalRating: null })}
-            >
-              CLEAR RATING
-            </button>
-          )}
-          <label>
-            PROGRESS <b>{form.progress ?? 0}%</b>
+                  : `${form.personalRating}/10`}
+              </b>
+            </legend>
+            <div className="rating-scale">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  aria-label={`Rate ${n} out of 10`}
+                  aria-pressed={form.personalRating === n}
+                  className={
+                    form.personalRating != null && n <= form.personalRating
+                      ? "is-filled"
+                      : ""
+                  }
+                  onClick={() =>
+                    update({
+                      personalRating: form.personalRating === n ? null : n,
+                    })
+                  }
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            {form.personalRating != null && (
+              <button
+                className="link-button"
+                onClick={() => update({ personalRating: null })}
+              >
+                Clear rating
+              </button>
+            )}
+          </fieldset>
+          <label className="tracker-field">
+            <span className="label">
+              Progress <b>{form.progress}%</b>
+            </span>
             <input
               type="range"
               min="0"
               max="100"
-              value={form.progress ?? 0}
-              onChange={(e) =>
-                setForm({ ...form, progress: Number(e.target.value) })
-              }
+              step="5"
+              value={form.progress}
+              onChange={(e) => update({ progress: Number(e.target.value) })}
             />
           </label>
-          <label>
-            PRIVATE NOTES
+          <label className="tracker-field">
+            <span className="label">Private notes</span>
             <textarea
+              className="textarea"
               maxLength={5000}
-              value={form.notes ?? ""}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              value={form.notes}
+              placeholder="Routes finished, where you left off, thoughts…"
+              onChange={(e) => update({ notes: e.target.value })}
             />
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={form.favorite ?? false}
-              onChange={() => setForm({ ...form, favorite: !form.favorite })}
-            />{" "}
-            ADD TO FAVORITES
           </label>
           <button
-            className="save-library"
-            disabled={
-              save.isPending || remove.isPending || lib.isPending || lib.isError
-            }
-            onClick={submit}
+            className="chip favorite-toggle"
+            aria-pressed={form.favorite}
+            onClick={() => update({ favorite: !form.favorite })}
           >
-            {save.isPending
-              ? "SAVING…"
-              : savedJson === JSON.stringify(input)
-                ? "SAVED"
-                : "SAVE TO LIBRARY"}
-            <ArrowRight />
+            <Heart aria-hidden="true" />
+            {form.favorite ? "Favorite" : "Add to favorites"}
           </button>
-          {current && (
+          {inLibrary ? (
+            <>
+              {save.isError && (
+                <button
+                  className="btn btn-primary tracker-save"
+                  onClick={() => save.mutate(input)}
+                >
+                  Retry save
+                </button>
+              )}
+              <button
+                className="link-button tracker-remove"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate()}
+              >
+                Remove from library
+              </button>
+            </>
+          ) : (
             <button
-              className="remove"
-              disabled={save.isPending || remove.isPending}
-              onClick={() => remove.mutate()}
+              className="btn btn-primary tracker-save"
+              disabled={save.isPending || lib.isPending || lib.isError}
+              onClick={() => save.mutate(input)}
             >
-              REMOVE FROM LIBRARY
+              {save.isPending ? "Adding…" : "Add to library"}
             </button>
           )}
           {(save.error || remove.error || lib.error) && (

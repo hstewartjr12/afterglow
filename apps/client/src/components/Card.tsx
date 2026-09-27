@@ -1,10 +1,7 @@
-import * as m from "motion/react-m";
 import type { VnSummary } from "@afterglow/shared";
-import { lengths, activateOnKey } from "../lib/format";
+import { activateOnKey, lengths, vndbRating } from "../lib/format";
 import { Cover } from "./Cover";
-export function Stamp({ children }: { children: React.ReactNode }) {
-  return <span className="stamp">{children}</span>;
-}
+
 export function Card({
   vn,
   onOpen,
@@ -15,39 +12,37 @@ export function Card({
   match?: number;
 }) {
   const activate = () => onOpen(vn);
+  const year = vn.released?.slice(0, 4);
+  const length = lengths[vn.length || 0];
   return (
-    <m.article
+    <article
       role="button"
       tabIndex={0}
-      whileHover={{ y: -4 }}
       className="vn-card"
+      aria-label={match != null ? `${vn.title}, ${match}% match` : vn.title}
       onClick={activate}
       onKeyDown={activateOnKey(activate)}
     >
       <Cover vn={vn} />
-      <div className="card-data">
-        {match != null && <Stamp>{match}/100 MATCH</Stamp>}
+      <div className="card-body">
+        <div className="card-top">
+          {match != null && <span className="match-pill">{match}% match</span>}
+          <span className="card-rating" title="VNDB rating">
+            ★ {vndbRating(vn.rating)}
+          </span>
+        </div>
         <h3>{vn.title}</h3>
-        {vn.alttitle && <small>{vn.alttitle}</small>}
-        <dl>
-          <div>
-            <dt>{vn.released?.slice(0, 4) || "—"}</dt>
-            <dd>{lengths[vn.length || 0] || "Unknown"}</dd>
-          </div>
-          <div>
-            <dt className="red">
-              {vn.rating ? (vn.rating / 10).toFixed(1) : "—"}/10
-            </dt>
-            <dd>
-              {vn.tags
-                .filter((t) => t.spoiler === 0)
-                .slice(0, 3)
-                .map((t) => t.name)
-                .join(", ")}
-            </dd>
-          </div>
-        </dl>
+        <p className="card-meta">
+          {[year, length].filter(Boolean).join(" · ") || "Release unknown"}
+        </p>
+        <p className="card-tags">
+          {vn.tags
+            .filter((t) => t.spoiler === 0)
+            .slice(0, 3)
+            .map((t) => t.name)
+            .join(" · ")}
+        </p>
       </div>
-    </m.article>
+    </article>
   );
 }

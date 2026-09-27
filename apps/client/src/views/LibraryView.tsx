@@ -6,7 +6,9 @@ import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { activateOnKey } from "../lib/format";
 import { Cover } from "../components/Cover";
-import { Stamp } from "../components/Card";
+const Stamp = ({ children }: { children: React.ReactNode }) => (
+  <span className="stamp">{children}</span>
+);
 import { Loading, ErrorState } from "../components/status";
 export function LibraryView({
   open,

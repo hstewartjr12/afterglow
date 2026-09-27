@@ -40,3 +40,34 @@ export function activateOnKey(activate: () => void) {
     }
   };
 }
+
+// One vocabulary everywhere: the stored values stay VNDB-style, the words are reader-facing.
+export const statusLabels: Record<string, string> = {
+  wishlist: "Wishlist",
+  backlog: "Backlog",
+  playing: "Reading",
+  completed: "Finished",
+  dropped: "Dropped",
+};
+export const statusLabel = (status: string) => statusLabels[status] ?? status;
+export const plural = (count: number, one: string, many = `${one}s`) =>
+  `${count.toLocaleString()} ${count === 1 ? one : many}`;
+export const vndbRating = (rating: number | null | undefined) =>
+  rating ? (rating / 10).toFixed(1) : "—";
+/** Alternate titles are only worth showing when they add something. */
+export const altTitle = (vn: { title: string; alttitle?: string | null }) =>
+  vn.alttitle &&
+  vn.alttitle.trim().toLowerCase() !== vn.title.trim().toLowerCase()
+    ? vn.alttitle
+    : null;
+export const coverIsSensitive = (vn: {
+  imageSexual: number;
+  imageViolence: number;
+}) => vn.imageSexual >= 1.5 || vn.imageViolence >= 1.5;
+export const tagWeights = [
+  { weight: 3, label: "Love", past: "Loved" },
+  { weight: 1, label: "Like", past: "Liked" },
+  { weight: -3, label: "Avoid", past: "Avoided" },
+] as const;
+export const weightLabel = (weight: number | undefined) =>
+  tagWeights.find((w) => w.weight === weight);

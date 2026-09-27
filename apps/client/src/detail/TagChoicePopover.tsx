@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import * as m from "motion/react-m";
 import { createPortal } from "react-dom";
 import type { VnSummary } from "@afterglow/shared";
+import { tagWeights } from "../lib/format";
 export function TagChoicePopover({
   anchor,
   tag,
@@ -68,20 +69,22 @@ export function TagChoicePopover({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <strong className="tag-action-name">{tag.name}</strong>
+      <p>How do you feel about stories with this?</p>
       <div>
-        {([3, 1, -3] as const).map((w) => (
+        {tagWeights.map(({ weight: w, label }) => (
           <button
             key={w}
             disabled={pending}
-            aria-label={`${choice === w ? "Remove" : "Mark"} ${tag.name} as ${w === 3 ? "love" : w === 1 ? "like" : "avoid"}`}
+            aria-label={`${choice === w ? "Remove" : "Mark"} ${tag.name} as ${label.toLowerCase()}`}
             aria-pressed={choice === w}
             className={choice === w ? "selected" : ""}
             onClick={() => onChoose(w)}
           >
-            {w === 3 ? "LOVE" : w === 1 ? "LIKE" : "AVOID"}
+            {label}
           </button>
         ))}
       </div>
+      {choice != null && <small>Choose it again to clear.</small>}
     </m.div>,
     document.body,
   );

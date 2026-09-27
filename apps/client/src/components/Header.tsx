@@ -1,11 +1,69 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence } from "motion/react";
-import * as m from "motion/react-m";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, Monitor, Moon, Search, Sun, X } from "lucide-react";
 import type { View } from "../types";
-function Rail() {
-  return <div className="accent-rail" aria-hidden="true" />;
+import { useTheme, type ThemeChoice } from "../lib/theme";
+
+const views: { view: View; label: string }[] = [
+  { view: "discover", label: "Discover" },
+  { view: "library", label: "Library" },
+  { view: "taste", label: "My taste" },
+];
+
+function ThemeSwitch() {
+  const [choice, setChoice] = useTheme();
+  const options: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
+    { value: "system", label: "Match system theme", icon: Monitor },
+    { value: "light", label: "Light theme", icon: Sun },
+    { value: "dark", label: "Dark theme", icon: Moon },
+  ];
+  return (
+    <div className="theme-switch" role="group" aria-label="Color theme">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          aria-label={label}
+          title={label}
+          aria-pressed={choice === value}
+          onClick={() => setChoice(value)}
+        >
+          <Icon aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
 }
+
+function SearchForm({
+  onSearch,
+  className,
+}: {
+  onSearch: (term: string) => void;
+  className: string;
+}) {
+  const [query, setQuery] = useState("");
+  return (
+    <form
+      className={`search-field ${className}`}
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSearch(query);
+      }}
+    >
+      <button type="submit" aria-label="Search visual novels">
+        <Search aria-hidden="true" />
+      </button>
+      <input
+        maxLength={100}
+        aria-label="Search titles and aliases"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search titles…"
+      />
+    </form>
+  );
+}
+
 export function Header({
   view,
   setView,
@@ -16,83 +74,64 @@ export function Header({
   onSearch: (term: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   useEffect(() => {
     if (!open) return;
     const close = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", close);
     return () => document.removeEventListener("keydown", close);
   }, [open]);
+  const go = (next: View) => {
+    setView(next);
+    setOpen(false);
+  };
   return (
     <header className="site-header">
-      <button
-        className="wordmark"
-        onClick={() => {
-          setView("home");
-          setOpen(false);
-        }}
-      >
-        AFTERGLOW<small>アフターグロウ</small>
+      <button className="wordmark" onClick={() => go("home")}>
+        Afterglow
+        <span className="jp" lang="ja">
+          アフターグロウ
+        </span>
       </button>
-      <AnimatePresence>
-        {open && (
-          <m.button
-            className="nav-scrim"
-            aria-label="Close navigation"
-            onClick={() => setOpen(false)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          />
-        )}
-      </AnimatePresence>
-      <nav className={open ? "open" : ""}>
-        <span className="nav-label">CONTENTS / 目次</span>
-        {(["discover", "library", "taste"] as View[]).map((v, i) => {
-          const label = v === "taste" ? "MY TASTE" : v.toUpperCase();
-          return (
-            <button
-              key={v}
-              aria-label={label}
-              className={view === v ? "active" : ""}
-              onClick={() => {
-                setView(v);
-                setOpen(false);
-              }}
-            >
-              <small>0{i + 1}</small>
-              {label}
-            </button>
-          );
-        })}
-      </nav>
-      <form
-        className="header-search"
-        role="search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSearch(query);
-        }}
-      >
-        <button type="submit" aria-label="Search visual novels">
-          <Search />
-        </button>
-        <input
-          maxLength={100}
-          aria-label="Search titles and aliases"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              onSearch(query);
-            }
-          }}
-          placeholder="Search titles and aliases…"
+      {open && (
+        <button
+          className="nav-scrim"
+          aria-label="Close navigation"
+          onClick={() => setOpen(false)}
         />
-      </form>
+      )}
+      <nav className={open ? "open" : ""} aria-label="Main">
+        <span className="nav-label label">Contents</span>
+        {views.map(({ view: v, label }, i) => (
+          <button
+            key={v}
+            className={view === v ? "active" : ""}
+            aria-current={view === v ? "page" : undefined}
+            onClick={() => go(v)}
+          >
+            <small aria-hidden="true">0{i + 1}</small>
+            {label}
+          </button>
+        ))}
+        {open && (
+          <>
+            <SearchForm
+              className="nav-search"
+              onSearch={(term) => {
+                setOpen(false);
+                onSearch(term);
+              }}
+            />
+            <div className="nav-theme">
+              <span className="label">Theme</span>
+              <ThemeSwitch />
+            </div>
+          </>
+        )}
+      </nav>
+      <SearchForm className="header-search" onSearch={onSearch} />
+      <ThemeSwitch />
       <button
-        className={`menu ${open ? "is-open" : ""}`}
+        className="menu icon-button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label={open ? "Close navigation" : "Open navigation"}
@@ -102,6 +141,7 @@ export function Header({
     </header>
   );
 }
+
 export function Shell({
   children,
   view,
@@ -115,7 +155,7 @@ export function Shell({
 }) {
   return (
     <>
-      <Rail />
+      <div className="accent-rail" aria-hidden="true" />
       <div className="site">
         <Header view={view} setView={setView} onSearch={onSearch} />
         {children}

@@ -1,0 +1,90 @@
+/*
+ * Design tokens. Light is warm paper at dusk; dark is the same catalogue after
+ * nightfall. `data-theme` on <html> forces a mode, otherwise the OS decides.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --surface: #faf7f0;
+  --surface-2: #ebe4d6;
+  --ink: #1d1b18;
+  --ink-2: #57524a;
+  --ink-3: #6f695f;
+  --line: #d9d1c2;
+  --line-strong: #1d1b18;
+  --accent: #b3302a;
+  --accent-hover: #962620;
+  --on-accent: #fff9f2;
+  --accent-soft: #f3dcd4;
+  --amber: #a8641c;
+  --shadow: #1d1b18;
+  --scrim: rgba(24, 21, 17, 0.62);
+  --glow-opacity: 0.32;
+  --skeleton-a: #ebe4d6;
+  --skeleton-b: #f6f1e8;
+  --grain: rgba(40, 32, 20, 0.05);
+
+  --font-display: "Oswald", "Arial Narrow", sans-serif;
+  --font-text: "Newsreader", "Shippori Mincho", Georgia, serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+  --font-jp: "Shippori Mincho", "Hiragino Mincho ProN", serif;
+
+  --step--1: 0.8125rem; /* 13px: smallest text anywhere */
+  --step-0: 1rem;
+  --step-1: 1.125rem;
+  --step-2: 1.375rem;
+  --step-3: 1.75rem;
+  --step-4: clamp(2rem, 4vw, 2.75rem);
+  --step-5: clamp(2.5rem, 6vw, 4.5rem);
+
+  --radius: 3px;
+  --gutter: clamp(16px, 3vw, 40px);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #12131c;
+    --surface: #1a1c28;
+    --surface-2: #242737;
+    --ink: #ece6da;
+    --ink-2: #b4ada1;
+    --ink-3: #9b958a;
+    --line: #313446;
+    --line-strong: #ece6da;
+    --accent: #ee7a5f;
+    --accent-hover: #f5957d;
+    --on-accent: #1b0f0b;
+    --accent-soft: #3a2320;
+    --amber: #f0b35a;
+    --shadow: #05060a;
+    --scrim: rgba(3, 4, 8, 0.72);
+    --glow-opacity: 0.5;
+    --skeleton-a: #1f2230;
+    --skeleton-b: #2a2d3f;
+    --grain: rgba(255, 255, 255, 0.025);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12131c;
+  --surface: #1a1c28;
+  --surface-2: #242737;
+  --ink: #ece6da;
+  --ink-2: #b4ada1;
+  --ink-3: #9b958a;
+  --line: #313446;
+  --line-strong: #ece6da;
+  --accent: #ee7a5f;
+  --accent-hover: #f5957d;
+  --on-accent: #1b0f0b;
+  --accent-soft: #3a2320;
+  --amber: #f0b35a;
+  --shadow: #05060a;
+  --scrim: rgba(3, 4, 8, 0.72);
+  --glow-opacity: 0.5;
+  --skeleton-a: #1f2230;
+  --skeleton-b: #2a2d3f;
+  --grain: rgba(255, 255, 255, 0.025);
+}

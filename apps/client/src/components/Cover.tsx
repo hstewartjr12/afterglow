@@ -1,15 +1,21 @@
 import { useState } from "react";
+import { EyeOff } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
+import { coverIsSensitive } from "../lib/format";
+
 export function Cover({
   vn,
   className = "",
   eager = false,
+  compact = false,
 }: {
   vn: VnSummary;
   className?: string;
   eager?: boolean;
+  /** Thumbnails have no room for a reveal button, so they only show a marker. */
+  compact?: boolean;
 }) {
-  const hidden = vn.imageSexual >= 1.5 || vn.imageViolence >= 1.5;
+  const hidden = coverIsSensitive(vn);
   const [revealed, setRevealed] = useState<string | null>(null);
   const show = !hidden || revealed === vn.id;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -26,19 +32,37 @@ export function Cover({
           alt={show ? `${vn.title} cover` : "Sensitive cover hidden"}
         />
       ) : (
-        <span className="no-cover">NO IMAGE</span>
+        <span className="no-cover">No cover</span>
       )}
-      {hasImage && hidden && !show && (
-        <button
-          className="reveal"
-          onClick={(e) => {
-            e.stopPropagation();
-            setRevealed(vn.id);
-          }}
-        >
-          REVEAL COVER
-        </button>
-      )}
+      {hasImage &&
+        !show &&
+        (compact ? (
+          <span className="hidden-mark" title="Sensitive cover hidden">
+            <EyeOff aria-hidden="true" />
+          </span>
+        ) : (
+          <button
+            className="reveal"
+            onClick={(e) => {
+              e.stopPropagation();
+              setRevealed(vn.id);
+            }}
+          >
+            Reveal cover
+          </button>
+        ))}
     </div>
+  );
+}
+
+/** A soft, blurred copy of the cover behind featured titles. */
+export function Glow({ vn }: { vn: VnSummary }) {
+  if (!vn.imageUrl || coverIsSensitive(vn)) return null;
+  return (
+    <div
+      className="glow"
+      aria-hidden="true"
+      style={{ backgroundImage: `url("${vn.imageUrl}")` }}
+    />
   );
 }

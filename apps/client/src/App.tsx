@@ -7,6 +7,7 @@ import type { View } from "./types";
 import { Shell } from "./components/Header";
 import { Home } from "./views/Home";
 import { Loading } from "./components/status";
+import { ToastProvider } from "./components/Toasts";
 
 // Home is the landing view; everything else loads on first use.
 const Discover = lazy(() =>
@@ -58,52 +59,54 @@ export default function App() {
   };
   return (
     <LazyMotion features={domAnimation} strict>
-      <Shell
-        view={view}
-        setView={navigate}
-        onSearch={(term) => {
-          if (!navigate("discover")) return;
-          setSearchRequest((current) => ({
-            term: term.trim(),
-            id: current.id + 1,
-          }));
-        }}
-      >
-        {view === "home" && <Home go={navigate} open={setSelected} />}
-        <Suspense
-          fallback={
-            <main className="page">
-              <Loading />
-            </main>
-          }
+      <ToastProvider>
+        <Shell
+          view={view}
+          setView={navigate}
+          onSearch={(term) => {
+            if (!navigate("discover")) return;
+            setSearchRequest((current) => ({
+              term: term.trim(),
+              id: current.id + 1,
+            }));
+          }}
         >
-          {view === "discover" && (
-            <Discover
-              key={searchRequest.id}
-              initialTerm={searchRequest.term}
-              open={setSelected}
-            />
-          )}
-          {view === "library" && (
-            <LibraryView
-              open={setSelected}
-              discover={() => navigate("discover")}
-            />
-          )}
-          {view === "taste" && <Taste onDirtyChange={setTasteDirty} />}
-        </Suspense>
-        <AnimatePresence>
-          {selected && (
-            <Suspense key={selected.id} fallback={null}>
-              <Detail
-                vn={selected}
-                recommendation={matching}
-                onClose={() => setSelected(null)}
+          {view === "home" && <Home go={navigate} open={setSelected} />}
+          <Suspense
+            fallback={
+              <main className="page">
+                <Loading />
+              </main>
+            }
+          >
+            {view === "discover" && (
+              <Discover
+                key={searchRequest.id}
+                initialTerm={searchRequest.term}
+                open={setSelected}
               />
-            </Suspense>
-          )}
-        </AnimatePresence>
-      </Shell>
+            )}
+            {view === "library" && (
+              <LibraryView
+                open={setSelected}
+                discover={() => navigate("discover")}
+              />
+            )}
+            {view === "taste" && <Taste onDirtyChange={setTasteDirty} />}
+          </Suspense>
+          <AnimatePresence>
+            {selected && (
+              <Suspense key={selected.id} fallback={null}>
+                <Detail
+                  vn={selected}
+                  recommendation={matching}
+                  onClose={() => setSelected(null)}
+                />
+              </Suspense>
+            )}
+          </AnimatePresence>
+        </Shell>
+      </ToastProvider>
     </LazyMotion>
   );
 }
