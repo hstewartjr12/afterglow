@@ -30,6 +30,7 @@ import { VnBox } from "../components/VnBox";
 import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
+import { easeOut } from "../lib/motion";
 
 type Tracker = Omit<LibraryInput, "vn">;
 const emptyTracker: Tracker = {
@@ -164,7 +165,9 @@ export function Detail({
     else if (
       !inLibrary &&
       dirty &&
-      !window.confirm(`Discard your tracker notes for ${vn.title}?`)
+      !window.confirm(
+        `Discard your tracker changes for ${vn.title}? It isn’t in your library yet.`,
+      )
     )
       return;
     onClose();
@@ -226,6 +229,7 @@ export function Detail({
       }),
     });
   const alt = altTitle(d);
+  const synopsisLoading = detail.isPlaceholderData && !detail.isError;
   const year = d.released?.slice(0, 4);
   const saveState = save.isPending
     ? "Saving…"
@@ -317,32 +321,72 @@ export function Detail({
               retry={() => void detail.refetch()}
             />
           )}
-          <section className="synopsis" aria-labelledby="synopsis-title">
+          <m.section
+            layout="position"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: easeOut, delay: 0.08 }}
+            className="synopsis"
+            aria-labelledby="synopsis-title"
+            aria-busy={synopsisLoading}
+          >
             <h2 id="synopsis-title" className="label label-accent">
               Synopsis
             </h2>
-            <p>
-              {detail.isPlaceholderData && !detail.isError
-                ? "Loading synopsis…"
-                : clean(d.description)}
-            </p>
-          </section>
-          <section className="fit" aria-labelledby="fit-title">
+            <AnimatePresence mode="wait" initial={false}>
+              {synopsisLoading ? (
+                <m.div
+                  key="loading"
+                  className="text-skeleton"
+                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                >
+                  <span className="visually-hidden">Loading synopsis…</span>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </m.div>
+              ) : (
+                <m.p
+                  key="text"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: easeOut }}
+                >
+                  {clean(d.description)}
+                </m.p>
+              )}
+            </AnimatePresence>
+          </m.section>
+          <m.section
+            layout="position"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: easeOut, delay: 0.14 }}
+            className="fit"
+            aria-labelledby="fit-title"
+          >
             <h2 id="fit-title" className="label label-accent">
               Why it fits you
             </h2>
             <VnBox
+              pending={!fit.data && !recommendation && fit.isLoading}
               reasons={
                 fit.data?.reasons ??
                 recommendation?.reasons ?? [
-                  fit.isLoading
-                    ? "Calculating your match…"
-                    : "No personalized signals matched this title yet.",
+                  "No personalized signals matched this title yet.",
                 ]
               }
             />
-          </section>
-          <section className="detail-tags" aria-labelledby="tags-title">
+          </m.section>
+          <m.section
+            layout="position"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: easeOut, delay: 0.2 }}
+            className="detail-tags"
+            aria-labelledby="tags-title"
+          >
             <div className="detail-tags-head">
               <h2 id="tags-title" className="label label-accent">
                 Tags <span className="muted">({visibleTags.length})</span>
@@ -475,9 +519,15 @@ export function Detail({
               </button>
             )}
             {taste.isError && <ErrorState message={taste.error.message} />}
-          </section>
+          </m.section>
         </section>
-        <aside className="tracker" aria-labelledby="tracker-title">
+        <m.aside
+          className="tracker"
+          aria-labelledby="tracker-title"
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.35, ease: easeOut, delay: 0.12 }}
+        >
           <div className="tracker-head">
             <h2 id="tracker-title">Your tracker</h2>
             {inLibrary && (
@@ -530,6 +580,7 @@ export function Detail({
                   key={n}
                   aria-label={`Rate ${n} out of 10`}
                   aria-pressed={form.personalRating === n}
+                  style={{ "--n": n } as React.CSSProperties}
                   className={
                     form.personalRating != null && n <= form.personalRating
                       ? "is-filled"
@@ -617,7 +668,7 @@ export function Detail({
               message={(save.error || remove.error || lib.error)!.message}
             />
           )}
-        </aside>
+        </m.aside>
       </m.article>
     </m.div>
   );

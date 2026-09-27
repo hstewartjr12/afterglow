@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as m from "motion/react-m";
 import { Menu, Monitor, Moon, Search, Sun, X } from "lucide-react";
 import type { View } from "../types";
 import { useTheme, type ThemeChoice } from "../lib/theme";
@@ -24,7 +25,13 @@ function ThemeSwitch() {
           aria-label={label}
           title={label}
           aria-pressed={choice === value}
-          onClick={() => setChoice(value)}
+          onClick={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            setChoice(value, {
+              x: box.left + box.width / 2,
+              y: box.top + box.height / 2,
+            });
+          }}
         >
           <Icon aria-hidden="true" />
         </button>
@@ -110,6 +117,13 @@ export function Header({
           >
             <small aria-hidden="true">0{i + 1}</small>
             {label}
+            {view === v && (
+              <m.span
+                className="nav-underline"
+                layoutId="nav-underline"
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              />
+            )}
           </button>
         ))}
         {open && (

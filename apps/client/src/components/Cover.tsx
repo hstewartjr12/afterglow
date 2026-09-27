@@ -20,13 +20,21 @@ export function Cover({
   const show = !hidden || revealed === vn.id;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const hasImage = Boolean(vn.imageUrl && vn.imageUrl !== failedUrl);
+  // Fade covers in once decoded instead of letting them pop in line by line.
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const loaded = loadedUrl === vn.imageUrl;
   return (
     <div className={`cover ${className}`}>
       {hasImage ? (
         <img
           loading={eager ? "eager" : "lazy"}
           decoding="async"
-          className={show ? "" : "is-blurred"}
+          className={`${show ? "" : "is-blurred"} ${loaded ? "is-loaded" : ""}`}
+          ref={(img) => {
+            if (img?.complete && img.naturalWidth && !loaded)
+              setLoadedUrl(vn.imageUrl);
+          }}
+          onLoad={() => setLoadedUrl(vn.imageUrl)}
           src={vn.imageUrl!}
           onError={() => setFailedUrl(vn.imageUrl)}
           alt={show ? `${vn.title} cover` : "Sensitive cover hidden"}

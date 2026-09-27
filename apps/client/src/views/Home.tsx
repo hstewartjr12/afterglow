@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { ArrowRight } from "lucide-react";
 import type { Preferences, VnSummary } from "@afterglow/shared";
@@ -21,6 +22,7 @@ import { Loading, ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { Motes } from "../components/Motes";
 import { easeOut } from "../lib/motion";
+import { picksHeading } from "../lib/timeOfDay";
 
 const STRIP_SIZE = 8;
 
@@ -138,77 +140,102 @@ export function Home({
     !pref.data.tagPreferences.length &&
     lib.data?.length === 0;
   const alt = top && altTitle(top.vn);
+  const heading = picksHeading();
   return (
     <main className="home">
       {newcomer && <Onboarding prefs={pref.data!} />}
       {top ? (
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-sky" aria-hidden="true">
-            <Glow vn={top.vn} />
+            <AnimatePresence initial={false}>
+              <m.div
+                key={top.vn.id}
+                className="glow-layer"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.9, ease: "easeInOut" }}
+              >
+                <Glow vn={top.vn} />
+              </m.div>
+            </AnimatePresence>
             <div className="halftone" />
             <Motes />
           </div>
-          <m.div
-            key={`cover-${top.vn.id}`}
-            layoutId={`cover-${top.vn.id}`}
-            className="hero-cover"
-            initial={{ opacity: 0, x: -24, rotate: -2 }}
-            animate={{ opacity: 1, x: 0, rotate: 0 }}
-            transition={{ duration: 0.6, ease: easeOut }}
-          >
-            <div className="sprite-float">
-              <Cover vn={top.vn} eager className="has-shadow" />
-            </div>
-          </m.div>
-          <m.div
-            key={`story-${top.vn.id}`}
-            className="hero-story"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: easeOut, delay: 0.08 }}
-          >
-            <span className="label label-accent">Your next story</span>
-            <h1 id="hero-title">{top.vn.title}</h1>
-            {alt && <p className="hero-alt jp">{alt}</p>}
-            <dl className="hero-facts">
-              <div>
-                <dt className="label">Reading time</dt>
-                <dd>{lengths[top.vn.length || 0] || "Unknown"}</dd>
+          {/* New titles fade in over the old ones in place (popLayout keeps the
+              leaving copy where it was), so the hero never sits empty. */}
+          <AnimatePresence mode="popLayout" initial={false}>
+            <m.div
+              key={`cover-${top.vn.id}`}
+              className="hero-cover"
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.35 } }}
+              transition={{ duration: 0.55, ease: easeOut }}
+            >
+              <div className="sprite-float">
+                <Cover vn={top.vn} eager className="has-shadow" />
               </div>
-              <div>
-                <dt className="label">Released</dt>
-                <dd>{top.vn.released?.slice(0, 4) || "Unknown"}</dd>
-              </div>
-              <div>
-                <dt className="label">VNDB rating</dt>
-                <dd>{vndbRating(top.vn.rating)} / 10</dd>
-              </div>
-              {top.vn.platforms.length > 0 && (
+            </m.div>
+          </AnimatePresence>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <m.div
+              key={`story-${top.vn.id}`}
+              className="hero-story"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.3 } }}
+              transition={{ duration: 0.5, ease: easeOut, delay: 0.05 }}
+            >
+              <span className="label label-accent">Your next story</span>
+              <h1 id="hero-title">{top.vn.title}</h1>
+              {alt && <p className="hero-alt jp">{alt}</p>}
+              <dl className="hero-facts">
                 <div>
-                  <dt className="label">Platforms</dt>
-                  <dd>
-                    {top.vn.platforms.slice(0, 3).map(platformName).join(", ")}
-                    {top.vn.platforms.length > 3 &&
-                      ` +${top.vn.platforms.length - 3}`}
-                  </dd>
+                  <dt className="label">Reading time</dt>
+                  <dd>{lengths[top.vn.length || 0] || "Unknown"}</dd>
                 </div>
-              )}
-            </dl>
-            <VnBox reasons={top.reasons} />
-            <div className="hero-actions">
-              <button className="btn btn-primary" onClick={() => open(top.vn)}>
-                Open story <ArrowRight aria-hidden="true" />
-              </button>
-              {all.length > 1 && (
+                <div>
+                  <dt className="label">Released</dt>
+                  <dd>{top.vn.released?.slice(0, 4) || "Unknown"}</dd>
+                </div>
+                <div>
+                  <dt className="label">VNDB rating</dt>
+                  <dd>{vndbRating(top.vn.rating)} / 10</dd>
+                </div>
+                {top.vn.platforms.length > 0 && (
+                  <div>
+                    <dt className="label">Platforms</dt>
+                    <dd>
+                      {top.vn.platforms
+                        .slice(0, 3)
+                        .map(platformName)
+                        .join(", ")}
+                      {top.vn.platforms.length > 3 &&
+                        ` +${top.vn.platforms.length - 3}`}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <VnBox reasons={top.reasons} />
+              <div className="hero-actions">
                 <button
-                  className="menu-choice"
-                  onClick={() => setFeatured((i) => (i + 1) % all.length)}
+                  className="btn btn-primary"
+                  onClick={() => open(top.vn)}
                 >
-                  Not tonight — show another
+                  Open story <ArrowRight aria-hidden="true" />
                 </button>
-              )}
-            </div>
-          </m.div>
+                {all.length > 1 && (
+                  <button
+                    className="menu-choice"
+                    onClick={() => setFeatured((i) => (i + 1) % all.length)}
+                  >
+                    Not tonight — show another
+                  </button>
+                )}
+              </div>
+            </m.div>
+          </AnimatePresence>
           <aside className="hero-score">
             <MatchScore value={top.matchPercent} align="end" />
             <p className="muted">
@@ -236,9 +263,9 @@ export function Home({
       )}
       <section className="picks" aria-labelledby="picks-title">
         <header className="section-head">
-          <h2 id="picks-title">Tonight’s picks</h2>
+          <h2 id="picks-title">{heading.en}</h2>
           <span className="jp" lang="ja">
-            今夜のおすすめ
+            {heading.jp}
           </span>
         </header>
         {recs.isError ? (

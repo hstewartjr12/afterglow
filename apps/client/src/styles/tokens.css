@@ -23,6 +23,8 @@
   --skeleton-a: #ebe4d6;
   --skeleton-b: #f6f1e8;
   --grain: rgba(40, 32, 20, 0.05);
+  --motes: petals;
+  --mote-color: #e59aa6;
 
   --font-display: "Oswald", "Arial Narrow", sans-serif;
   --font-text: "Newsreader", "Shippori Mincho", Georgia, serif;
@@ -64,6 +66,8 @@
     --skeleton-a: #1f2230;
     --skeleton-b: #2a2d3f;
     --grain: rgba(255, 255, 255, 0.025);
+    --motes: light;
+    --mote-color: #f0b35a;
   }
 }
 :root[data-theme="dark"] {
@@ -87,4 +91,6 @@
   --skeleton-a: #1f2230;
   --skeleton-b: #2a2d3f;
   --grain: rgba(255, 255, 255, 0.025);
+  --motes: light;
+  --mote-color: #f0b35a;
 }

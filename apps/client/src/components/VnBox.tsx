@@ -13,9 +13,12 @@ const TICK_MS = 28;
 export function VnBox({
   reasons,
   speaker = "Afterglow",
+  pending = false,
 }: {
   reasons: string[];
   speaker?: string;
+  /** Still working out what to say: show a "…" like a character about to speak. */
+  pending?: boolean;
 }) {
   const reduced = useReducedMotion();
   const total = reasons.reduce((sum, r) => sum + r.length, 0);
@@ -24,7 +27,7 @@ export function VnBox({
   const count = typed.key === key ? typed.count : reduced ? total : 0;
   const done = count >= total;
   useEffect(() => {
-    if (done) return;
+    if (done || pending) return;
     const timer = setInterval(
       () =>
         setTyped((t) => ({
@@ -37,26 +40,35 @@ export function VnBox({
       TICK_MS,
     );
     return () => clearInterval(timer);
-  }, [done, key, total]);
+  }, [done, key, total, pending]);
   let remaining = count;
   return (
     <figure
-      className={`vn-box ${done ? "is-done" : "is-typing"}`}
+      className={`vn-box ${done && !pending ? "is-done" : "is-typing"}`}
       onClick={() => setTyped({ key, count: total })}
     >
       <figcaption className="vn-box-name">{speaker}</figcaption>
-      <ul>
-        {reasons.map((reason) => {
-          const shown = Math.max(0, Math.min(reason.length, remaining));
-          remaining -= reason.length;
-          return (
-            <li key={reason} className={shown ? "" : "is-pending"}>
-              <span>{reason.slice(0, shown)}</span>
-              <span className="vn-rest">{reason.slice(shown)}</span>
-            </li>
-          );
-        })}
-      </ul>
+      {pending ? (
+        <p className="vn-thinking" role="status">
+          <span className="visually-hidden">Calculating your match…</span>
+          <i />
+          <i />
+          <i />
+        </p>
+      ) : (
+        <ul>
+          {reasons.map((reason) => {
+            const shown = Math.max(0, Math.min(reason.length, remaining));
+            remaining -= reason.length;
+            return (
+              <li key={reason} className={shown ? "" : "is-pending"}>
+                <span>{reason.slice(0, shown)}</span>
+                <span className="vn-rest">{reason.slice(shown)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <span className="vn-box-next" aria-hidden="true">
         ▼
       </span>

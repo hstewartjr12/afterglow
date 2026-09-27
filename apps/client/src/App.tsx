@@ -1,4 +1,12 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, domMax, LazyMotion } from "motion/react";
 import type { VnSummary } from "@afterglow/shared";
@@ -11,19 +19,19 @@ import { ToastProvider } from "./components/Toasts";
 import { Eyecatch } from "./components/Eyecatch";
 import { prefersReducedMotion } from "./lib/motion";
 
-// Home is the landing view; everything else loads on first use.
+// Home is the landing view; everything else loads on first use, or while idle.
+const loadDiscover = () => import("./views/Discover");
+const loadLibrary = () => import("./views/LibraryView");
+const loadTaste = () => import("./views/Taste");
+const loadDetail = () => import("./detail/Detail");
 const Discover = lazy(() =>
-  import("./views/Discover").then((m) => ({ default: m.Discover })),
+  loadDiscover().then((m) => ({ default: m.Discover })),
 );
 const LibraryView = lazy(() =>
-  import("./views/LibraryView").then((m) => ({ default: m.LibraryView })),
+  loadLibrary().then((m) => ({ default: m.LibraryView })),
 );
-const Taste = lazy(() =>
-  import("./views/Taste").then((m) => ({ default: m.Taste })),
-);
-const Detail = lazy(() =>
-  import("./detail/Detail").then((m) => ({ default: m.Detail })),
-);
+const Taste = lazy(() => loadTaste().then((m) => ({ default: m.Taste })));
+const Detail = lazy(() => loadDetail().then((m) => ({ default: m.Detail })));
 
 type SearchRequest = {
   term: string;
@@ -46,6 +54,15 @@ export default function App() {
     () => recs.data?.find((r) => r.vn.id === selected?.id),
     [recs.data, selected],
   );
+  // Fetch the other screens once the first one has settled, so page changes
+  // and the detail sheet never flash a loading state.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const load of [loadDetail, loadDiscover, loadLibrary, loadTaste])
+        void load();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
   // The taste page reports unsaved edits so leaving it can be confirmed first.
   const tasteDirty = useRef(false);
   const setTasteDirty = useCallback((dirty: boolean) => {

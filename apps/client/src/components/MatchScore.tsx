@@ -34,18 +34,25 @@ export function MatchInfo({ align }: { align?: "end" }) {
   );
 }
 
+/** Counts from the previously shown number, so changes glide instead of restarting at zero. */
 function useCountUp(target: number | undefined, reduced: boolean) {
   const [value, setValue] = useState(reduced ? target : 0);
+  const shown = useRef(value ?? 0);
   useEffect(() => {
     if (target == null || reduced) {
       setValue(target);
       return;
     }
+    const from = shown.current;
     const start = performance.now();
     let frame = 0;
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / 900);
-      setValue(Math.round(target * (1 - Math.pow(1 - t, 3))));
+      const next = Math.round(
+        from + (target - from) * (1 - Math.pow(1 - t, 3)),
+      );
+      shown.current = next;
+      setValue(next);
       if (t < 1) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);

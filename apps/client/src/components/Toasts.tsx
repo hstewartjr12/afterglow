@@ -5,6 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 
 type Toast = {
   id: number;
@@ -35,25 +37,35 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={show}>
       {children}
       <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((toast) => (
-          <div className="toast" key={toast.id}>
-            <p>{toast.message}</p>
-            {toast.action && (
-              <button
-                className="toast-action"
-                onClick={() => {
-                  toast.action!.run();
-                  dismiss(toast.id);
-                }}
-              >
-                {toast.action.label}
+        <AnimatePresence initial={false}>
+          {toasts.map((toast) => (
+            <m.div
+              className="toast"
+              key={toast.id}
+              layout
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, transition: { duration: 0.18 } }}
+              transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+            >
+              <p>{toast.message}</p>
+              {toast.action && (
+                <button
+                  className="toast-action"
+                  onClick={() => {
+                    toast.action!.run();
+                    dismiss(toast.id);
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              )}
+              <button aria-label="Dismiss" onClick={() => dismiss(toast.id)}>
+                ✕
               </button>
-            )}
-            <button aria-label="Dismiss" onClick={() => dismiss(toast.id)}>
-              ✕
-            </button>
-          </div>
-        ))}
+            </m.div>
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );

@@ -7,8 +7,7 @@
   display: grid;
   grid-template-columns: minmax(220px, 320px) minmax(0, 1fr) 200px;
   gap: 48px;
-  padding: 32px 0 48px;
-  border-bottom: 1px solid var(--line);
+  padding: 32px 0 56px;
 }
 .hero-cover .cover {
   box-shadow: 10px 12px 0 var(--shadow);
@@ -121,7 +120,7 @@
   letter-spacing: 0.2em;
 }
 .picks {
-  padding-top: 40px;
+  padding-top: 24px;
 }
 .picks-more {
   display: flex;
