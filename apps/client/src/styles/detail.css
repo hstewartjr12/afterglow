@@ -443,3 +443,59 @@
     grid-column: 1;
   }
 }
+
+/* Synopsis spoilers: hidden in place, revealed one at a time or all at once */
+.synopsis-spoilers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 0.9375rem;
+}
+.synopsis-spoilers .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.synopsis-spoilers svg,
+.spoiler-pill svg {
+  width: 14px;
+  height: 14px;
+}
+.spoiler-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 2px;
+  padding: 1px 10px;
+  border: 1px dashed var(--ink-3);
+  border-radius: 999px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--surface-2) 0 6px,
+    var(--surface) 6px 12px
+  );
+  color: var(--ink-2);
+  font: 600 var(--step--1) / 1.6 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 0.1em;
+}
+.spoiler-pill:hover {
+  border-style: solid;
+  border-color: var(--tint, var(--accent));
+  color: var(--ink);
+}
+.spoiler-text {
+  padding: 0 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tint, var(--accent)) 14%, transparent);
+  color: inherit;
+  animation: spoiler-in 0.35s var(--ease);
+}
+@keyframes spoiler-in {
+  from {
+    background: color-mix(in srgb, var(--tint, var(--accent)) 40%, transparent);
+  }
+}

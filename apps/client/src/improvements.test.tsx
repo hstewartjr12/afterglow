@@ -493,6 +493,46 @@ describe("redesign behaviors", () => {
     scroll.mockRestore();
   });
 
+  it("keeps synopsis spoilers hidden until revealed", async () => {
+    const handler = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, options) =>
+      String(input) === "/api/vndb/vn/v1"
+        ? json({
+            ...alpha,
+            description:
+              "Home again. [spoiler]The narrator was dead.[/spoiler] Then [spoiler]a second twist.[/spoiler]",
+          })
+        : handler(input, options),
+    );
+    start();
+    const dialog = await openStory();
+    await within(dialog).findByText("Home again.", { exact: false });
+    expect(
+      within(dialog).queryByText(/narrator was dead/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByText("2 spoilers are hidden."),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Reveal spoiler 1 of 2" }),
+    );
+    expect(
+      within(dialog).getByText("The narrator was dead."),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("1 spoiler is hidden."),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/second twist/)).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reveal all" }));
+    expect(within(dialog).getByText("a second twist.")).toBeInTheDocument();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Hide spoilers" }),
+    );
+    expect(
+      within(dialog).queryByText(/narrator was dead/),
+    ).not.toBeInTheDocument();
+  });
+
   it("labels the spoiler tag control and explains hidden tags", async () => {
     start();
     const dialog = await openStory();

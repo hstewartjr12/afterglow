@@ -1,25 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { coverSrc } from "./lib/coverColor";
-import { clean, releaseYears } from "./lib/format";
+import { parseDescription, releaseYears } from "./lib/format";
 
-describe("VNDB description cleanup", () => {
-  it("removes spoiler blocks instead of revealing their contents", () => {
-    expect(clean("Intro. [spoiler]The twist.[/spoiler] Outro.")).toBe(
-      "Intro.  Outro.",
-    );
+describe("VNDB descriptions", () => {
+  it("separates spoilers from the rest of the text", () => {
+    expect(
+      parseDescription("Intro. [spoiler]The twist.[/spoiler] Outro."),
+    ).toEqual([
+      { text: "Intro. ", spoiler: false },
+      { text: "The twist.", spoiler: true },
+      { text: " Outro.", spoiler: false },
+    ]);
   });
 
   it("unwraps links and formatting while keeping ordinary brackets", () => {
     expect(
-      clean("See [url=https://x.test]this[/url], [b]bold[/b] [Chapter 1]"),
-    ).toBe("See this, bold [Chapter 1]");
+      parseDescription(
+        "See [url=https://x.test]this[/url], [b]bold[/b] [Chapter 1]",
+      ),
+    ).toEqual([{ text: "See this, bold [Chapter 1]", spoiler: false }]);
   });
 
-  it("falls back when nothing readable remains", () => {
-    expect(clean("[spoiler]Everything[/spoiler]")).toBe(
-      "No spoiler-free description is available.",
-    );
-    expect(clean(null)).toBe("No spoiler-free description is available.");
+  it("hides the rest of the text after an unclosed spoiler tag", () => {
+    expect(parseDescription("Start [spoiler]secret")).toEqual([
+      { text: "Start ", spoiler: false },
+      { text: "secret", spoiler: true },
+    ]);
+  });
+
+  it("returns nothing for empty descriptions", () => {
+    expect(parseDescription(null)).toEqual([]);
+    expect(parseDescription("  ")).toEqual([]);
   });
 });
 

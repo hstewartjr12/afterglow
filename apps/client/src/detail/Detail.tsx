@@ -16,7 +16,6 @@ import { useModal } from "../useModal";
 import { invalidateMatches } from "../queries";
 import {
   altTitle,
-  clean,
   lengths,
   platformName,
   statusLabel,
@@ -30,6 +29,7 @@ import { VnBox } from "../components/VnBox";
 import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
+import { Synopsis } from "./Synopsis";
 import { easeOut, prefersReducedMotion } from "../lib/motion";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
@@ -352,14 +352,14 @@ export function Detail({
                   <i />
                 </m.div>
               ) : (
-                <m.p
+                <m.div
                   key="text"
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, ease: easeOut }}
                 >
-                  {clean(d.description)}
-                </m.p>
+                  <Synopsis description={d.description} />
+                </m.div>
               )}
             </AnimatePresence>
           </m.section>
