@@ -9,7 +9,14 @@ import { invalidateMatches } from "../queries";
 import { lengths, platformName } from "../lib/format";
 import { Loading, ErrorState } from "../components/status";
 import { TagIndex } from "./TagIndex";
-export function Taste() {
+// `completed` only records that a profile was ever saved, so it never makes a draft dirty.
+const profileKey = (p: Preferences) =>
+  JSON.stringify({ ...p, completed: true });
+export function Taste({
+  onDirtyChange,
+}: {
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const qc = useQueryClient();
   const pref = useQuery({
     queryKey: ["preferences"],
@@ -18,13 +25,27 @@ export function Taste() {
   const [draft, setDraft] = useState<Preferences | null>(null);
   const [index, setIndex] = useState<string | null>(null);
   const [savedJson, setSavedJson] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<string | null>(null);
   useEffect(() => {
-    if (pref.data && !draft) setDraft(pref.data);
+    if (pref.data && !draft) {
+      setDraft(pref.data);
+      setBaseline(profileKey(pref.data));
+    }
   }, [pref.data, draft]);
+  const dirty = Boolean(draft && baseline && profileKey(draft) !== baseline);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const save = useMutation({
     mutationFn: api.savePreferences,
     onSuccess: (_data, variables) => {
       setSavedJson(JSON.stringify(variables));
+      setBaseline(profileKey(variables));
       invalidateMatches(qc);
       qc.invalidateQueries({ queryKey: ["preferences"] });
     },
@@ -194,6 +215,11 @@ export function Taste() {
           </small>
         </span>
       </label>
+      {dirty && !save.isPending && (
+        <p className="unsaved-note" role="status">
+          UNSAVED CHANGES — save your taste profile to update recommendations.
+        </p>
+      )}
       {save.isError && <ErrorState message={save.error.message} />}
       <p className="taste-note">
         <Info /> Your ratings, favorites, dropped titles, and reading history

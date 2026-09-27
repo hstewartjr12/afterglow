@@ -319,6 +319,38 @@ describe("discovery and library improvements", () => {
   });
 });
 
+describe("unsaved taste changes", () => {
+  it("warns before leaving the taste page with unsaved edits", async () => {
+    start();
+    fireEvent.click(screen.getByRole("button", { name: "MY TASTE" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Short" }));
+    expect(screen.getByText(/UNSAVED CHANGES/)).toBeInTheDocument();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+    fireEvent.click(screen.getByRole("button", { name: "DISCOVER" }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("checkbox", { name: "Short" })).toBeChecked();
+    confirm.mockReturnValueOnce(true);
+    fireEvent.click(screen.getByRole("button", { name: "DISCOVER" }));
+    expect(
+      await screen.findByRole("heading", { name: "DISCOVER A STORY" }),
+    ).toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it("does not warn once the profile is saved", async () => {
+    start();
+    fireEvent.click(screen.getByRole("button", { name: "MY TASTE" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Short" }));
+    fireEvent.click(screen.getByRole("button", { name: "SAVE TASTE PROFILE" }));
+    await screen.findByRole("button", { name: "PROFILE SAVED" });
+    expect(screen.queryByText(/UNSAVED CHANGES/)).not.toBeInTheDocument();
+    const confirm = vi.spyOn(window, "confirm");
+    fireEvent.click(screen.getByRole("button", { name: "DISCOVER" }));
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+});
+
 describe("tracker edits", () => {
   it("lets readers assign the default midrange rating and clear it again", async () => {
     start();

@@ -6,6 +6,14 @@ export const lengths = [
   "Long",
   "Very long",
 ];
+/** The last five years, then every fifth year back to 1980 (the API's lower bound). */
+export function releaseYears(current = new Date().getFullYear()) {
+  const years: number[] = [];
+  for (let y = current; y > current - 5; y--) years.push(y);
+  for (let y = Math.floor((current - 5) / 5) * 5; y >= 1980; y -= 5)
+    years.push(y);
+  return years;
+}
 export const platformLabels: Record<string, string> = {
   win: "Windows",
   lin: "Linux",

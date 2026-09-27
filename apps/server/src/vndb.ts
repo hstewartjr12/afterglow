@@ -1,18 +1,18 @@
-import type { VnDetail, VndbTag } from "@afterglow/shared";
+import type { VnDetail, VndbTag, VnSummary } from "@afterglow/shared";
 import { sqlite } from "./db.js";
 const BASE = "https://api.vndb.org/kana";
 const HALF_HOUR = 30 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
-const vnFields =
-  "title,alttitle,aliases,released,rating,votecount,length_minutes,length,platforms,description,image.url,image.sexual,image.violence,tags.id,tags.name,tags.rating,tags.spoiler";
+// Lists only need what cards and scoring use; descriptions are fetched with the detail view.
+const summaryFields =
+  "title,alttitle,released,rating,votecount,length,platforms,image.url,image.sexual,image.violence,tags.id,tags.name,tags.rating,tags.spoiler";
+const detailFields = `${summaryFields},aliases,description`;
 type Raw = Record<string, any>;
-function map(raw: Raw): VnDetail {
+function mapSummary(raw: Raw): VnSummary {
   return {
     id: raw.id,
     title: raw.title,
     alttitle: raw.alttitle ?? null,
-    aliases: raw.aliases ?? [],
-    description: raw.description ?? null,
     imageUrl: raw.image?.url ?? null,
     imageSexual: raw.image?.sexual ?? 0,
     imageViolence: raw.image?.violence ?? 0,
@@ -29,6 +29,14 @@ function map(raw: Raw): VnDetail {
     })),
   };
 }
+function mapDetail(raw: Raw): VnDetail {
+  return {
+    ...mapSummary(raw),
+    aliases: raw.aliases ?? [],
+    description: raw.description ?? null,
+  };
+}
+type VnPage<T> = { results: T[]; more?: boolean; count?: number };
 async function cachedFetch<T>(
   key: string,
   ttl: number,
@@ -89,26 +97,36 @@ async function post(path: string, body: Raw, fallback: string): Promise<any> {
     );
   return response.json();
 }
-async function loadQuery(
+async function loadQuery<T>(
   key: string,
   body: Raw,
-): Promise<{ results: VnDetail[]; more?: boolean; count?: number }> {
+  fields: string,
+  mapResult: (raw: Raw) => T,
+): Promise<VnPage<T>> {
   return cachedFetch(key, HALF_HOUR, async () => {
     const raw = await post(
       "/vn",
-      { ...body, fields: vnFields },
+      { ...body, fields },
       "VNDB could not be reached.",
     );
-    return { ...raw, results: raw.results.map(map) };
+    return { ...raw, results: raw.results.map(mapResult) };
   });
 }
 // Detail and match requests often ask for the same VN concurrently.
 // Share that work until the result is persisted in the existing disk cache.
-const inFlight = new Map<string, ReturnType<typeof loadQuery>>();
-async function query(key: string, body: Raw) {
+const inFlight = new Map<string, Promise<VnPage<unknown>>>();
+async function query(key: string, body: Raw): Promise<VnPage<VnSummary>>;
+async function query(
+  key: string,
+  body: Raw,
+  detail: true,
+): Promise<VnPage<VnDetail>>;
+async function query(key: string, body: Raw, detail = false) {
   const existing = inFlight.get(key);
   if (existing) return existing;
-  const pending = loadQuery(key, body);
+  const pending = detail
+    ? loadQuery(key, body, detailFields, mapDetail)
+    : loadQuery(key, body, summaryFields, mapSummary);
   inFlight.set(key, pending);
   try {
     return await pending;
@@ -144,7 +162,7 @@ export const searchVns = async (options: VnSearchOptions) => {
     !options.q && options.sort === "searchrank"
       ? "rating"
       : (options.sort ?? (options.q ? "searchrank" : "rating"));
-  const key = `browse4:${JSON.stringify({ ...options, q: options.q.toLowerCase() })}`;
+  const key = `browse5:${JSON.stringify({ ...options, q: options.q.toLowerCase() })}`;
   return query(key, {
     filters,
     sort,
@@ -156,12 +174,12 @@ export const searchVns = async (options: VnSearchOptions) => {
 };
 export async function getVn(id: string) {
   return (
-    (await query(`vn2:${id}`, { filters: ["id", "=", id], results: 1 }))
+    (await query(`vn2:${id}`, { filters: ["id", "=", id], results: 1 }, true))
       .results[0] ?? null
   );
 }
 export const popularVns = () =>
-  query("popular2", {
+  query("popular3", {
     filters: ["and", ["rating", ">=", 70], ["votecount", ">=", 100]],
     sort: "rating",
     reverse: true,
@@ -239,7 +257,7 @@ export async function personalizedVns(
     ...tagIds.slice(0, 8).map((id) => ["tag", "=", [id, spoilerLevel, 0.5]]),
   ];
   const themed = await query(
-    `personal2:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`,
+    `personal3:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`,
     { filters, sort: "rating", reverse: true, results: 60 },
   );
   const popular = await popularVns();

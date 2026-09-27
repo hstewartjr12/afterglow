@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import type { VnSummary } from "@afterglow/shared";
@@ -30,30 +30,45 @@ export default function App() {
     () => recs.data?.find((r) => r.vn.id === selected?.id),
     [recs.data, selected],
   );
+  // The taste page reports unsaved edits so leaving it can be confirmed first.
+  const tasteDirty = useRef(false);
+  const setTasteDirty = useCallback((dirty: boolean) => {
+    tasteDirty.current = dirty;
+  }, []);
+  const navigate = (next: View) => {
+    if (
+      next !== view &&
+      tasteDirty.current &&
+      !window.confirm("Leave without saving your taste profile changes?")
+    )
+      return false;
+    setView(next);
+    return true;
+  };
   return (
     <Shell
       view={view}
-      setView={setView}
+      setView={navigate}
       onSearch={(term) => {
+        if (!navigate("discover")) return;
         setSearchRequest((current) => ({
           term: term.trim(),
           id: current.id + 1,
         }));
-        setView("discover");
       }}
     >
-      {view === "home" && <Home go={setView} open={setSelected} />}{" "}
+      {view === "home" && <Home go={navigate} open={setSelected} />}
       {view === "discover" && (
         <Discover
           key={searchRequest.id}
           initialTerm={searchRequest.term}
           open={setSelected}
         />
-      )}{" "}
+      )}
       {view === "library" && (
-        <LibraryView open={setSelected} discover={() => setView("discover")} />
-      )}{" "}
-      {view === "taste" && <Taste />}
+        <LibraryView open={setSelected} discover={() => navigate("discover")} />
+      )}
+      {view === "taste" && <Taste onDirtyChange={setTasteDirty} />}
       <AnimatePresence>
         {selected && (
           <Detail

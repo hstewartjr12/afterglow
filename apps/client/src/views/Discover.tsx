@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
 import { api } from "../api";
-import { lengths, platformLabels } from "../lib/format";
+import { lengths, platformLabels, releaseYears } from "../lib/format";
 import { Card } from "../components/Card";
 import { Loading, ErrorState } from "../components/status";
 export function Discover({
@@ -87,9 +87,7 @@ export function Discover({
     filterCount ||
     (filters.sort !== "rating" && filters.sort !== "searchrank"),
   );
-  const years = [
-    ...new Set([new Date().getFullYear(), 2025, 2020, 2015, 2010, 2000, 1990]),
-  ];
+  const years = useMemo(() => releaseYears(), []);
   return (
     <main className="page">
       <section className="page-title">

@@ -215,7 +215,11 @@ export function Detail({
           )}
           <div className="synopsis">
             <b>SYNOPSIS</b>
-            <p>{clean(d.description)}</p>
+            <p>
+              {detail.isPlaceholderData && !detail.isError
+                ? "Loading synopsis…"
+                : clean(d.description)}
+            </p>
           </div>
           <div className="detail-tags">
             <div className="detail-tags-heading">

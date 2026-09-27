@@ -2494,3 +2494,9 @@ select:focus-visible {
     padding: 12px;
   }
 }
+.unsaved-note {
+  margin: 14px 0 0;
+  color: var(--red);
+  font: 600 11px Oswald;
+  letter-spacing: 0.08em;
+}

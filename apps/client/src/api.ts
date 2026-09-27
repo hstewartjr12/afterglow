@@ -41,7 +41,7 @@ export const api = {
     for (const key of ["platform", "length", "year", "rating"] as const)
       if (filters[key]) params.set(key, filters[key]);
     return request<{
-      results: VnDetail[];
+      results: VnSummary[];
       count?: number;
       more?: boolean;
     }>(`/api/vndb/search?${params}`, { signal });

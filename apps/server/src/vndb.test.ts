@@ -133,3 +133,23 @@ describe("upstream outages", () => {
     });
   });
 });
+
+describe("requested fields", () => {
+  const fieldsOf = () =>
+    String(
+      JSON.parse(vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string).fields,
+    ).split(",");
+
+  it("leaves descriptions out of list results", async () => {
+    const result = await searchVns({ q: "", page: 3 });
+    expect(fieldsOf()).not.toContain("description");
+    expect(result.results[0]).not.toHaveProperty("description");
+  });
+
+  it("includes descriptions and aliases for a single title", async () => {
+    await getVn("v42");
+    expect(fieldsOf()).toEqual(
+      expect.arrayContaining(["description", "aliases"]),
+    );
+  });
+});
