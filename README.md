@@ -29,6 +29,15 @@ npm run dev
 
 Open `http://localhost:5173`. Personal data is stored locally in `data/afterglow.db` and no account or API key is required.
 
+To run the built app from a single server instead:
+
+```bash
+npm run build
+npm start
+```
+
+Then open `http://127.0.0.1:3001`. The API has no accounts, so it only listens on `127.0.0.1` by default. Set `HOST`, `PORT`, or `AFTERGLOW_DATA_DIR` to change the address, port, or database folder.
+
 ## Checks
 
 ```bash

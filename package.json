@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently -n server,client -c magenta,cyan \"npm run dev -w @afterglow/server\" \"npm run dev -w @afterglow/client\"",
     "build": "npm run build -w @afterglow/shared && npm run build -w @afterglow/server && npm run build -w @afterglow/client",
+    "start": "npm run start -w @afterglow/server",
     "test": "npm run test -w @afterglow/server && npm run test -w @afterglow/client",
     "typecheck": "npm run typecheck -w @afterglow/shared && npm run typecheck -w @afterglow/server && npm run typecheck -w @afterglow/client"
   },

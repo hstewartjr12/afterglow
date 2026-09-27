@@ -19,8 +19,8 @@ export const vndbTagSchema = z.object({id:z.string(),name:z.string(),aliases:z.a
 export type VndbTag = z.infer<typeof vndbTagSchema>;
 
 export const libraryInputSchema = z.object({
-  status: libraryStatusSchema.default("backlog"), personalRating: z.number().min(1).max(10).nullable().default(null),
-  favorite: z.boolean().default(false), progress: z.number().min(0).max(100).default(0), notes: z.string().max(5000).default(""),
+  status: libraryStatusSchema.default("backlog"), personalRating: z.number().int().min(1).max(10).nullable().default(null),
+  favorite: z.boolean().default(false), progress: z.number().int().min(0).max(100).default(0), notes: z.string().max(5000).default(""),
   startedAt: z.string().nullable().default(null), completedAt: z.string().nullable().default(null), vn: vnSummarySchema
 });
 export type LibraryInput = z.infer<typeof libraryInputSchema>;

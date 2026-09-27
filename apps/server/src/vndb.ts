@@ -1,4 +1,4 @@
-import type { VnDetail } from "@afterglow/shared";
+import type { VnDetail, VndbTag } from "@afterglow/shared";
 import { sqlite } from "./db.js";
 const BASE = "https://api.vndb.org/kana";
 const HALF_HOUR = 30 * 60 * 1000;
@@ -43,31 +43,51 @@ async function cachedFetch<T>(
     | undefined;
   if (hit && Number(hit.expires_at) > Date.now())
     return JSON.parse(String(hit.value)) as T;
-  const result = await request();
+  let result: T;
+  try {
+    result = await request();
+  } catch (error) {
+    // Prefer slightly old catalogue data over an error page while VNDB is unavailable.
+    if (hit) return JSON.parse(String(hit.value)) as T;
+    throw error;
+  }
   await sqlite.execute({
     sql: "INSERT OR REPLACE INTO vn_cache(key,value,expires_at) VALUES(?,?,?)",
     args: [key, JSON.stringify(result), Date.now() + ttl],
   });
   return result;
 }
+class UpstreamError extends Error {
+  readonly upstream = true;
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 async function post(path: string, body: Raw, fallback: string): Promise<any> {
-  const response = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": "Afterglow/0.2 personal VN tracker",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = new Error(
+  let response: Response;
+  try {
+    response = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Afterglow/0.1 personal VN tracker",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new UpstreamError(fallback);
+  }
+  if (!response.ok)
+    throw new UpstreamError(
       response.status === 429
         ? "VNDB is busy. Please try again shortly."
         : fallback,
+      response.status,
     );
-    (err as any).status = response.status;
-    throw err;
-  }
   return response.json();
 }
 async function loadQuery(
@@ -152,7 +172,14 @@ export async function searchTags(
   q: string,
   page: number,
   category?: "cont" | "ero" | "tech",
-) {
+  skipped = 0,
+): Promise<{
+  recordCount: number;
+  usableOnPage: number;
+  page: number;
+  more: boolean;
+  results: VndbTag[];
+}> {
   const key = `tags3:${category ?? "all"}:${q.toLowerCase()}:${page}`;
   const result = await cachedFetch(key, DAY, async () => {
     const predicates: any[] = [];
@@ -180,7 +207,9 @@ export async function searchTags(
         id: t.id,
         name: t.name,
         aliases: t.aliases ?? [],
-        description: (t.description ?? "").replace(/\[[^\]]+\]/g, ""),
+        description: (t.description ?? "")
+          .replace(/\[spoiler\][\s\S]*?\[\/spoiler\]/gi, "")
+          .replace(/\[[^\]]+\]/g, ""),
         category: t.category,
         searchable: t.searchable,
         applicable: t.applicable,
@@ -194,7 +223,9 @@ export async function searchTags(
       results: usable,
     };
   });
-  if (!result.results.length && result.more) return searchTags(q, page + 1, category);
+  // Skip pages made up entirely of unusable tags, but never walk the whole index.
+  if (!result.results.length && result.more && skipped < 5)
+    return searchTags(q, page + 1, category, skipped + 1);
   return result;
 }
 export async function personalizedVns(

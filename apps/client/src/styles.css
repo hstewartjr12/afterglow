@@ -108,6 +108,7 @@ textarea:focus-visible, select:focus-visible {
 .library-ledger h3, .library-ledger p { overflow-wrap: anywhere; }
 .library-ledger p { white-space: pre-line; max-height: 5em; overflow: hidden; }
 .clear-rating { border: 0; background: none; color: var(--red); padding: 0; font: 600 10px Oswald; }
+.reading-dates { margin: 0; font: 600 10px Oswald; letter-spacing: .08em; color: var(--muted, inherit); }
 .tracker .notice { margin-top: 16px; padding: 12px; }
 .empty-ledger .ink-button { margin: 24px auto 0; }
 @media (max-width: 1100px) {

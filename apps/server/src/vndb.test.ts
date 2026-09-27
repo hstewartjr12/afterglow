@@ -114,3 +114,22 @@ describe("concurrent VN requests", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("upstream outages", () => {
+  it("serves expired cached data when VNDB cannot be reached", async () => {
+    const stale = { results: [{ id: "v7", title: "Cached" }] };
+    vi.mocked(sqlite.execute).mockResolvedValueOnce({
+      rows: [{ value: JSON.stringify(stale), expires_at: Date.now() - 1000 }],
+    } as any);
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect(await getVn("v7")).toEqual(stale.results[0]);
+  });
+
+  it("reports network failures as upstream errors", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(getVn("v8")).rejects.toMatchObject({
+      upstream: true,
+      message: "VNDB could not be reached.",
+    });
+  });
+});

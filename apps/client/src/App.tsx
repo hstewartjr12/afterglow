@@ -40,9 +40,14 @@ const platformLabels: Record<string, string> = {
   ps4: "PlayStation 4",
   ps5: "PlayStation 5",
 };
-const clean = (s: string | null | undefined) =>
-  s?.replace(/\[url=[^\]]+\]|\[\/url\]|\[[^\]]+\]/g, "") ||
-  "No spoiler-free description is available.";
+// VNDB descriptions use BBCode; drop spoiler blocks entirely and unwrap formatting tags.
+export const clean = (s: string | null | undefined) =>
+  s
+    ?.replace(/\[spoiler\][\s\S]*?\[\/spoiler\]/gi, "")
+    .replace(/\[\/?(?:url(?:=[^\]]*)?|b|i|u|s|raw|quote|code)\]/gi, "")
+    .trim() || "No spoiler-free description is available.";
+const platformName = (p: string) => platformLabels[p] ?? p.toUpperCase();
+const today = () => new Date().toISOString().slice(0, 10);
 function activateOnKey(activate: () => void) {
   return (e: React.KeyboardEvent<HTMLElement>) => {
     if (
@@ -1187,7 +1192,7 @@ function Taste() {
                   })
                 }
               />
-              {p.toUpperCase()}
+              {platformName(p)}
             </label>
           ))}
         </section>
@@ -1481,7 +1486,7 @@ function Detail({
             </div>
             <div>
               <dt>PLATFORM</dt>
-              <dd>{d.platforms.slice(0, 5).join(", ").toUpperCase()}</dd>
+              <dd>{d.platforms.slice(0, 5).map(platformName).join(", ") || "—"}</dd>
             </div>
             <div>
               <dt>VNDB ID</dt>
@@ -1665,20 +1670,33 @@ function Detail({
             STATUS
             <select
               value={form.status || "backlog"}
-              onChange={(e) =>
+              onChange={(e) => {
+                const status = e.target.value as LibraryEntry["status"];
+                // Record reading dates the first time a story is started or finished.
                 setForm({
                   ...form,
-                  status: e.target.value as LibraryEntry["status"],
-                })
-              }
+                  status,
+                  ...((status === "playing" || status === "completed") &&
+                    !form.startedAt && { startedAt: today() }),
+                  ...(status === "completed" && {
+                    progress: 100,
+                    completedAt: form.completedAt ?? today(),
+                  }),
+                });
+              }}
             >
-              {["wishlist", "backlog", "playing", "completed", "dropped"].map(
-                (s) => (
-                  <option key={s}>{s}</option>
-                ),
-              )}
+              {libraryStatuses.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </select>
           </label>
+          {(form.startedAt || form.completedAt) && (
+            <p className="reading-dates">
+              {form.startedAt && <>STARTED {form.startedAt.slice(0, 10)}</>}
+              {form.startedAt && form.completedAt && " · "}
+              {form.completedAt && <>FINISHED {form.completedAt.slice(0, 10)}</>}
+            </p>
+          )}
           <label>
             YOUR RATING{" "}
             <b>
