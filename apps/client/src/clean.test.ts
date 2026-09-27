@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clean } from "./App";
+import { clean } from "./lib/format";
 
 describe("VNDB description cleanup", () => {
   it("removes spoiler blocks instead of revealing their contents", () => {
