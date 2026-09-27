@@ -10,8 +10,6 @@ Recommendations combine manual tag weights with each title's VNDB tag relevance,
 
 ## Screenshots
 
-Screenshots use sample data.
-
 ### Discover your next story
 
 ![Afterglow discovery screen showing an explainable visual novel recommendation](docs/images/afterglow-discover.jpg)
@@ -51,5 +49,16 @@ npm run build
 ```
 
 Run `npm run format` to apply Prettier formatting.
+
+## Screenshots
+
+The README screenshots come from your own running copy, so they show real covers:
+
+```bash
+npm run build && npm start   # in one terminal
+npm run screenshots          # in another; add -- --theme=dark for dark mode
+```
+
+The first run may ask you to install Chromium with `npx playwright install chromium`. The images include your library and taste profile, so look them over before committing.
 
 VN metadata is provided by the [VNDB Kana API](https://api.vndb.org/kana) and remains subject to its terms and data license.
