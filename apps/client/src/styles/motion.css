@@ -344,10 +344,12 @@
   }
   .section-head .jp {
     position: absolute;
-    left: calc(var(--gutter) * -1 + 10px);
-    top: 0;
+    /* Centered in the page gutter, clear of the red rail. */
+    left: calc(var(--gutter) / -2 - 0.5em);
+    top: 4px;
     writing-mode: vertical-rl;
     letter-spacing: 0.3em;
+    line-height: 1;
   }
 }
 
