@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "../lib/motion";
 
 /** Explains the match number wherever it appears prominently. */
 export function MatchInfo({ align }: { align?: "end" }) {
@@ -33,19 +34,78 @@ export function MatchInfo({ align }: { align?: "end" }) {
   );
 }
 
+function useCountUp(target: number | undefined, reduced: boolean) {
+  const [value, setValue] = useState(reduced ? target : 0);
+  useEffect(() => {
+    if (target == null || reduced) {
+      setValue(target);
+      return;
+    }
+    const start = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / 900);
+      setValue(Math.round(target * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target, reduced]);
+  return value;
+}
+
+/**
+ * The match score as a dating-sim style affinity meter: a ring that fills and
+ * a number that counts up when a title comes into view.
+ */
 export function MatchScore({
   value,
   align,
+  size = "large",
 }: {
   value?: number;
   align?: "end";
+  size?: "large" | "small";
 }) {
+  const reduced = useReducedMotion();
+  const shown = useCountUp(value, reduced);
+  // Start empty and fill on the next frame so the ring animates in.
+  const [armed, setArmed] = useState(reduced);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setArmed(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  const fraction =
+    value == null || !armed ? 0 : Math.max(0, Math.min(1, value / 100));
   return (
-    <div className="score">
-      <span className="score-value">
-        {value ?? "—"}
-        <small>%</small>
-      </span>
+    <div className={`affinity affinity-${size}`}>
+      <div className="affinity-ring">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle className="affinity-track" cx="50" cy="50" r={radius} />
+          <circle
+            className="affinity-fill"
+            cx="50"
+            cy="50"
+            r={radius}
+            style={{
+              strokeDasharray: circumference,
+              strokeDashoffset: circumference * (1 - fraction),
+            }}
+          />
+        </svg>
+        <span className="affinity-value">
+          <span className="visually-hidden">{value ?? "Unknown"}% match</span>
+          <span aria-hidden="true">
+            {value == null ? "—" : shown}
+            <small>%</small>
+          </span>
+        </span>
+        <span className="affinity-heart" aria-hidden="true">
+          ♥
+        </span>
+      </div>
       <span className="label">
         Match <MatchInfo align={align} />
       </span>

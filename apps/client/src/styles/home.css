@@ -10,15 +10,6 @@
   padding: 32px 0 48px;
   border-bottom: 1px solid var(--line);
 }
-.hero .glow {
-  inset: 0 -10%;
-  height: auto;
-  mask-image: radial-gradient(
-    ellipse 55% 60% at 25% 45%,
-    #000 20%,
-    transparent 75%
-  );
-}
 .hero-cover .cover {
   box-shadow: 10px 12px 0 var(--shadow);
 }
@@ -71,9 +62,7 @@
   padding-top: 8px;
   text-align: right;
 }
-.hero-score .score-value {
-  font-size: 4.5rem;
-}
+
 .hero-empty {
   display: grid;
   justify-items: start;
@@ -156,13 +145,6 @@
     gap: 20px;
     padding-top: 12px;
   }
-  .hero .glow {
-    mask-image: radial-gradient(
-      ellipse 80% 40% at 30% 15%,
-      #000 20%,
-      transparent 75%
-    );
-  }
   .hero-cover .cover {
     box-shadow: 5px 6px 0 var(--shadow);
   }
@@ -211,8 +193,11 @@
     border-block: 1px solid var(--line);
     text-align: right;
   }
-  .hero-score .score-value {
-    font-size: 3rem;
+  .hero-score .affinity-ring {
+    width: 92px;
+  }
+  .hero-score .affinity-value {
+    font-size: 1.875rem;
   }
   .onboarding {
     padding: 20px;

@@ -90,6 +90,8 @@ export function Detail({
   const [savedKey, setSavedKey] = useState(keyOf(emptyTracker));
   const [allTags, setAllTags] = useState(false);
   const [spoilerLevel, setSpoilerLevel] = useState<0 | 1 | 2>(0);
+  // A tag that was just loved, for a brief heart burst.
+  const [burst, setBurst] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<{
     id: string;
     anchor: HTMLElement;
@@ -193,15 +195,19 @@ export function Detail({
     if (!pref.data) return;
     const existing = pref.data.tagPreferences.find((x) => x.id === tag.id);
     const rest = pref.data.tagPreferences.filter((x) => x.id !== tag.id);
+    const clearing = existing?.weight === weight;
     taste.mutate({
       ...pref.data,
       completed: true,
-      tagPreferences:
-        existing?.weight === weight
-          ? rest
-          : [...rest, { id: tag.id, name: tag.name, weight }],
+      tagPreferences: clearing
+        ? rest
+        : [...rest, { id: tag.id, name: tag.name, weight }],
     });
     setActiveTag(null);
+    if (weight > 1 && !clearing) {
+      setBurst(tag.id);
+      setTimeout(() => setBurst((b) => (b === tag.id ? null : b)), 900);
+    }
   };
   const update = (patch: Partial<Tracker>) => {
     // A new edit is a fresh attempt, so let autosave try again after a failure.
@@ -269,7 +275,9 @@ export function Detail({
           <X />
         </button>
         <aside className="detail-cover">
-          <Cover vn={d} eager className="has-shadow" />
+          <m.div layoutId={`cover-${d.id}`}>
+            <Cover vn={d} eager className="has-shadow" />
+          </m.div>
         </aside>
         <header className="detail-head">
           <h1>{d.title}</h1>
@@ -284,7 +292,7 @@ export function Detail({
               .join(" · ")}
           </p>
           <div className="detail-scores">
-            <MatchScore value={currentMatch?.matchPercent} />
+            <MatchScore value={currentMatch?.matchPercent} size="small" />
             <div className="score">
               <span className="score-value plain">
                 {vndbRating(d.rating)}
@@ -422,6 +430,18 @@ export function Detail({
                           </>
                         )}
                       </button>
+                      {burst === t.id && (
+                        <span className="heart-burst" aria-hidden="true">
+                          {Array.from({ length: 7 }, (_, i) => (
+                            <i
+                              key={i}
+                              style={{ "--i": i } as React.CSSProperties}
+                            >
+                              ♥
+                            </i>
+                          ))}
+                        </span>
+                      )}
                     </div>
                   );
                 })}

@@ -3,6 +3,13 @@ import * as m from "motion/react-m";
 import { createPortal } from "react-dom";
 import type { VnSummary } from "@afterglow/shared";
 import { tagWeights } from "../lib/format";
+
+// Phrased as a visual novel choice, one per line.
+const choiceText: Record<number, string> = {
+  3: "I love stories with this",
+  1: "I like it",
+  [-3]: "I’d rather avoid it",
+};
 export function TagChoicePopover({
   anchor,
   tag,
@@ -70,18 +77,22 @@ export function TagChoicePopover({
     >
       <strong className="tag-action-name">{tag.name}</strong>
       <p>How do you feel about stories with this?</p>
-      <div>
-        {tagWeights.map(({ weight: w, label }) => (
-          <button
+      <div className="choices">
+        {tagWeights.map(({ weight: w, label }, i) => (
+          <m.button
             key={w}
             disabled={pending}
             aria-label={`${choice === w ? "Remove" : "Mark"} ${tag.name} as ${label.toLowerCase()}`}
             aria-pressed={choice === w}
-            className={choice === w ? "selected" : ""}
+            className={`choice ${choice === w ? "selected" : ""}`}
             onClick={() => onChoose(w)}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.04 * i, duration: 0.2 }}
           >
-            {label}
-          </button>
+            {w > 1 ? "♥ " : ""}
+            {choiceText[w]}
+          </m.button>
         ))}
       </div>
       {choice != null && <small>Choose it again to clear.</small>}

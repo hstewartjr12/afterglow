@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import * as m from "motion/react-m";
+import { ArrowRight } from "lucide-react";
 import type { Preferences, VnSummary } from "@afterglow/shared";
 import { api } from "../api";
 import type { View } from "../types";
@@ -18,6 +19,8 @@ import { MatchScore } from "../components/MatchScore";
 import { VnBox } from "../components/VnBox";
 import { Loading, ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
+import { Motes } from "../components/Motes";
+import { easeOut } from "../lib/motion";
 
 const STRIP_SIZE = 8;
 
@@ -140,11 +143,30 @@ export function Home({
       {newcomer && <Onboarding prefs={pref.data!} />}
       {top ? (
         <section className="hero" aria-labelledby="hero-title">
-          <Glow vn={top.vn} />
-          <div className="hero-cover">
-            <Cover vn={top.vn} eager className="has-shadow" />
+          <div className="hero-sky" aria-hidden="true">
+            <Glow vn={top.vn} />
+            <div className="halftone" />
+            <Motes />
           </div>
-          <div className="hero-story">
+          <m.div
+            key={`cover-${top.vn.id}`}
+            layoutId={`cover-${top.vn.id}`}
+            className="hero-cover"
+            initial={{ opacity: 0, x: -24, rotate: -2 }}
+            animate={{ opacity: 1, x: 0, rotate: 0 }}
+            transition={{ duration: 0.6, ease: easeOut }}
+          >
+            <div className="sprite-float">
+              <Cover vn={top.vn} eager className="has-shadow" />
+            </div>
+          </m.div>
+          <m.div
+            key={`story-${top.vn.id}`}
+            className="hero-story"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: easeOut, delay: 0.08 }}
+          >
             <span className="label label-accent">Your next story</span>
             <h1 id="hero-title">{top.vn.title}</h1>
             {alt && <p className="hero-alt jp">{alt}</p>}
@@ -179,14 +201,14 @@ export function Home({
               </button>
               {all.length > 1 && (
                 <button
-                  className="btn btn-quiet"
+                  className="menu-choice"
                   onClick={() => setFeatured((i) => (i + 1) % all.length)}
                 >
-                  <RefreshCw aria-hidden="true" /> Not tonight
+                  Not tonight — show another
                 </button>
               )}
             </div>
-          </div>
+          </m.div>
           <aside className="hero-score">
             <MatchScore value={top.matchPercent} align="end" />
             <p className="muted">
@@ -226,8 +248,9 @@ export function Home({
           />
         ) : (
           <div className="catalogue">
-            {strip.map((r) => (
+            {strip.map((r, index) => (
               <Card
+                index={index}
                 key={r.vn.id}
                 vn={r.vn}
                 match={r.matchPercent}

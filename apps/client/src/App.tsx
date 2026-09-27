@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, domAnimation, LazyMotion } from "motion/react";
+import { AnimatePresence, domMax, LazyMotion } from "motion/react";
 import type { VnSummary } from "@afterglow/shared";
 import { api } from "./api";
 import type { View } from "./types";
@@ -8,6 +8,8 @@ import { Shell } from "./components/Header";
 import { Home } from "./views/Home";
 import { Loading } from "./components/status";
 import { ToastProvider } from "./components/Toasts";
+import { Eyecatch } from "./components/Eyecatch";
+import { prefersReducedMotion } from "./lib/motion";
 
 // Home is the landing view; everything else loads on first use.
 const Discover = lazy(() =>
@@ -29,6 +31,8 @@ type SearchRequest = {
 };
 export default function App() {
   const [view, setView] = useState<View>("home");
+  // The view being transitioned to while the eyecatch covers the screen.
+  const [pending, setPending] = useState<View | null>(null);
   const [selected, setSelected] = useState<VnSummary | null>(null);
   const [searchRequest, setSearchRequest] = useState<SearchRequest>({
     term: "",
@@ -54,14 +58,21 @@ export default function App() {
       !window.confirm("Leave without saving your taste profile changes?")
     )
       return false;
-    setView(next);
+    if (next === view || prefersReducedMotion()) setView(next);
+    else setPending(next);
     return true;
   };
+  const reveal = () => {
+    if (!pending) return;
+    setView(pending);
+    setPending(null);
+    window.scrollTo(0, 0);
+  };
   return (
-    <LazyMotion features={domAnimation} strict>
+    <LazyMotion features={domMax} strict>
       <ToastProvider>
         <Shell
-          view={view}
+          view={pending ?? view}
           setView={navigate}
           onSearch={(term) => {
             if (!navigate("discover")) return;
@@ -94,6 +105,9 @@ export default function App() {
             )}
             {view === "taste" && <Taste onDirtyChange={setTasteDirty} />}
           </Suspense>
+          <AnimatePresence>
+            {pending && <Eyecatch view={pending} onCovered={reveal} />}
+          </AnimatePresence>
           <AnimatePresence>
             {selected && (
               <Suspense key={selected.id} fallback={null}>
