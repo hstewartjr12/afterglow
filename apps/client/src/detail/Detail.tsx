@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { ArrowRight, X } from "lucide-react";
 import type {
   LibraryEntry,
@@ -9,7 +10,7 @@ import type {
   VnDetail,
   VnSummary,
 } from "@afterglow/shared";
-import { libraryStatuses } from "@afterglow/shared";
+import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { useModal } from "../useModal";
 import { invalidateMatches } from "../queries";
@@ -128,7 +129,7 @@ export function Detail({
   };
   const submit = () => save.mutate(input);
   return (
-    <motion.div
+    <m.div
       className="modal-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -140,7 +141,7 @@ export function Detail({
         }
       }}
     >
-      <motion.article
+      <m.article
         ref={modalRef}
         tabIndex={-1}
         className="detail-sheet"
@@ -483,7 +484,7 @@ export function Detail({
             />
           )}
         </aside>
-      </motion.article>
-    </motion.div>
+      </m.article>
+    </m.div>
   );
 }

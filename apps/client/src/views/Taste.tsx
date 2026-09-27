@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import { ArrowRight, Info, Search, X } from "lucide-react";
 import type { Preferences, VndbTag } from "@afterglow/shared";
-import { platforms } from "@afterglow/shared";
+import { platforms } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { invalidateMatches } from "../queries";
 import { lengths, platformName } from "../lib/format";

@@ -1,12 +1,8 @@
 import { z } from "zod";
+import { libraryStatuses, platforms } from "./constants.ts";
 
-export const libraryStatuses = [
-  "wishlist",
-  "backlog",
-  "playing",
-  "completed",
-  "dropped",
-] as const;
+export { libraryStatuses, platforms };
+
 export const libraryStatusSchema = z.enum(libraryStatuses);
 
 export const vnSummarySchema = z.object({
@@ -38,16 +34,6 @@ export type VnDetail = VnSummary & {
   description: string | null;
   aliases: string[];
 };
-export const platforms = [
-  "win",
-  "lin",
-  "mac",
-  "and",
-  "ios",
-  "swi",
-  "ps4",
-  "ps5",
-] as const;
 export const platformSchema = z.enum(platforms);
 export const vndbTagSchema = z.object({
   id: z.string(),

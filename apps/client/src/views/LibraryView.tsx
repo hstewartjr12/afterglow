@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ChevronRight, Heart, Search } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
-import { libraryStatuses } from "@afterglow/shared";
+import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { activateOnKey } from "../lib/format";
 import { Cover } from "../components/Cover";

@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import type { VnSummary } from "@afterglow/shared";
 import { lengths, activateOnKey } from "../lib/format";
 import { Cover } from "./Cover";
@@ -16,7 +16,7 @@ export function Card({
 }) {
   const activate = () => onOpen(vn);
   return (
-    <motion.article
+    <m.article
       role="button"
       tabIndex={0}
       whileHover={{ y: -4 }}
@@ -48,6 +48,6 @@ export function Card({
           </div>
         </dl>
       </div>
-    </motion.article>
+    </m.article>
   );
 }

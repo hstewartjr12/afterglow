@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { Menu, Search, X } from "lucide-react";
 import type { View } from "../types";
 function Rail() {
@@ -35,7 +36,7 @@ export function Header({
       </button>
       <AnimatePresence>
         {open && (
-          <motion.button
+          <m.button
             className="nav-scrim"
             aria-label="Close navigation"
             onClick={() => setOpen(false)}

@@ -54,9 +54,12 @@ describe("Afterglow shell", () => {
   it("sends Discover selections to the search API", async () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: "DISCOVER" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "PLATFORM" }), {
-      target: { value: "swi" },
-    });
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "PLATFORM" }),
+      {
+        target: { value: "swi" },
+      },
+    );
     fireEvent.change(screen.getByRole("combobox", { name: "LENGTH" }), {
       target: { value: "2" },
     });

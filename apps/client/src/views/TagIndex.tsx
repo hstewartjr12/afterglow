@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { Search, X } from "lucide-react";
 import type { Preferences, VndbTag } from "@afterglow/shared";
 import { api } from "../api";
@@ -34,14 +34,14 @@ export function TagIndex({
     queryFn: () => api.tags(q, page, category),
   });
   return (
-    <motion.div
+    <m.div
       className="modal-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.section
+      <m.section
         ref={modalRef}
         tabIndex={-1}
         className="tag-index"
@@ -195,7 +195,7 @@ export function TagIndex({
             NEXT →
           </button>
         </footer>
-      </motion.section>
-    </motion.div>
+      </m.section>
+    </m.div>
   );
 }

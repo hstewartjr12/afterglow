@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { createPortal } from "react-dom";
 import type { VnSummary } from "@afterglow/shared";
 export function TagChoicePopover({
@@ -52,7 +52,7 @@ export function TagChoicePopover({
     };
   }, [anchor, onClose]);
   return createPortal(
-    <motion.div
+    <m.div
       ref={ref}
       className="tag-popover"
       role="group"
@@ -82,7 +82,7 @@ export function TagChoicePopover({
           </button>
         ))}
       </div>
-    </motion.div>,
+    </m.div>,
     document.body,
   );
 }
