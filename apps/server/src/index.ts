@@ -55,14 +55,19 @@ const defaults: Preferences = {
 };
 async function readPreferences(): Promise<Preferences> {
   const row = (
-    await db.select().from(appSettings).where(eq(appSettings.key, "preferences"))
+    await db
+      .select()
+      .from(appSettings)
+      .where(eq(appSettings.key, "preferences"))
   )[0];
   if (!row) return defaults;
   // A stored profile from an older schema should not break every recommendation request.
   try {
     const parsed = preferencesSchema.safeParse(JSON.parse(row.value));
     if (parsed.success) return parsed.data;
-  } catch {}
+  } catch {
+    // Fall through to the defaults below.
+  }
   console.warn("Ignoring unreadable saved preferences");
   return defaults;
 }
@@ -77,8 +82,16 @@ app.get("/api/health", (_req, res) => {
 app.get("/api/vndb/search", async (req, res) => {
   const q = z.string().max(100).default("").parse(req.query.q);
   const page = z.coerce.number().int().min(1).default(1).parse(req.query.page);
-  const platform = platformSchema.optional().parse(optional(req.query.platform));
-  const length = z.coerce.number().int().min(1).max(5).optional().parse(optional(req.query.length));
+  const platform = platformSchema
+    .optional()
+    .parse(optional(req.query.platform));
+  const length = z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .optional()
+    .parse(optional(req.query.length));
   const year = z.coerce
     .number()
     .int()
@@ -86,7 +99,13 @@ app.get("/api/vndb/search", async (req, res) => {
     .max(new Date().getFullYear())
     .optional()
     .parse(optional(req.query.year));
-  const rating = z.coerce.number().int().min(1).max(10).optional().parse(optional(req.query.rating));
+  const rating = z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .parse(optional(req.query.rating));
   const sort = z
     .enum(["rating", "released", "votecount", "title", "searchrank"])
     .optional()
@@ -97,21 +116,29 @@ app.get("/api/vndb/search", async (req, res) => {
 app.get("/api/vndb/tags", async (req, res) => {
   const q = z.string().max(100).default("").parse(req.query.q);
   const page = z.coerce.number().int().min(1).default(1).parse(req.query.page);
-  const category = z.enum(["cont", "ero", "tech"]).optional().parse(optional(req.query.category));
+  const category = z
+    .enum(["cont", "ero", "tech"])
+    .optional()
+    .parse(optional(req.query.category));
   res.json(await searchTags(q, page, category));
 });
 
 app.get("/api/vndb/vn/:id", async (req, res) => {
   const vn = await getVn(vndbId.parse(req.params.id));
   if (!vn) {
-    res.status(404).json({ error: "Visual novel not found", code: "NOT_FOUND" });
+    res
+      .status(404)
+      .json({ error: "Visual novel not found", code: "NOT_FOUND" });
     return;
   }
   res.json(vn);
 });
 
 app.get("/api/library", async (_req, res) => {
-  const rows = await db.select().from(libraryEntries).orderBy(desc(libraryEntries.updatedAt));
+  const rows = await db
+    .select()
+    .from(libraryEntries)
+    .orderBy(desc(libraryEntries.updatedAt));
   res.json(rows.map(serialize));
 });
 
@@ -139,7 +166,9 @@ app.put("/api/library/:vndbId", async (req, res) => {
 });
 
 app.delete("/api/library/:vndbId", async (req, res) => {
-  await db.delete(libraryEntries).where(eq(libraryEntries.vndbId, vndbId.parse(req.params.vndbId)));
+  await db
+    .delete(libraryEntries)
+    .where(eq(libraryEntries.vndbId, vndbId.parse(req.params.vndbId)));
   res.status(204).end();
 });
 
@@ -158,28 +187,42 @@ app.put("/api/preferences", async (req, res) => {
 });
 
 app.get("/api/recommendations", async (_req, res) => {
-  const [library, prefs] = await Promise.all([readLibrary(), readPreferences()]);
+  const [library, prefs] = await Promise.all([
+    readLibrary(),
+    readPreferences(),
+  ]);
   const positiveIds = prefs.tagPreferences
     .filter((p) => p.weight > 0 && /^g\d+$/.test(p.id))
     .sort((a, b) => b.weight - a.weight)
     .map((p) => p.id);
-  const candidates = await personalizedVns(positiveIds, prefs.useSpoilerTagsInRecommendations);
+  const candidates = await personalizedVns(
+    positiveIds,
+    prefs.useSpoilerTagsInRecommendations,
+  );
   res.json(rankRecommendations(candidates, library, prefs));
 });
 
 app.post("/api/recommendations/score", async (req, res) => {
   const vns = z.array(vnSummarySchema).max(30).parse(req.body?.vns);
-  const [library, prefs] = await Promise.all([readLibrary(), readPreferences()]);
+  const [library, prefs] = await Promise.all([
+    readLibrary(),
+    readPreferences(),
+  ]);
   res.json(rankRecommendations(vns, library, prefs, false, vns.length));
 });
 
 app.get("/api/recommendations/:id", async (req, res) => {
   const vn = await getVn(vndbId.parse(req.params.id));
   if (!vn) {
-    res.status(404).json({ error: "Visual novel not found", code: "NOT_FOUND" });
+    res
+      .status(404)
+      .json({ error: "Visual novel not found", code: "NOT_FOUND" });
     return;
   }
-  const [library, prefs] = await Promise.all([readLibrary(), readPreferences()]);
+  const [library, prefs] = await Promise.all([
+    readLibrary(),
+    readPreferences(),
+  ]);
   res.json(rankRecommendations([vn], library, prefs, false)[0]);
 });
 
@@ -188,33 +231,54 @@ app.use("/api", (_req, res) => {
 });
 
 // Serve the built client when it exists, so `npm run build && npm start` is a complete app.
-const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client/dist");
+const clientDist = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../client/dist",
+);
 if (fs.existsSync(path.join(clientDist, "index.html"))) {
   app.use(express.static(clientDist));
-  app.get("/{*path}", (_req, res) => res.sendFile(path.join(clientDist, "index.html")));
+  app.get("/{*path}", (_req, res) =>
+    res.sendFile(path.join(clientDist, "index.html")),
+  );
 }
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof z.ZodError) {
-    res.status(400).json({ error: err.issues[0]?.message ?? "Invalid request", code: "VALIDATION_ERROR" });
-    return;
-  }
-  const status = Number(err?.status ?? err?.statusCode);
-  if (status === 429) {
-    res.status(429).json({ error: err.message, code: "RATE_LIMITED" });
-    return;
-  }
-  // Client errors raised by middleware (e.g. malformed JSON bodies) are not upstream failures.
-  if (status >= 400 && status < 500 && err?.expose) {
-    res.status(status).json({ error: "The request could not be read.", code: "BAD_REQUEST" });
-    return;
-  }
-  console.error(err);
-  if (err?.upstream) {
-    res.status(502).json({ error: err.message, code: "UPSTREAM_ERROR" });
-    return;
-  }
-  res.status(500).json({ error: "Something went wrong.", code: "INTERNAL_ERROR" });
-});
+app.use(
+  (
+    err: any,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({
+        error: err.issues[0]?.message ?? "Invalid request",
+        code: "VALIDATION_ERROR",
+      });
+      return;
+    }
+    const status = Number(err?.status ?? err?.statusCode);
+    if (status === 429) {
+      res.status(429).json({ error: err.message, code: "RATE_LIMITED" });
+      return;
+    }
+    // Client errors raised by middleware (e.g. malformed JSON bodies) are not upstream failures.
+    if (status >= 400 && status < 500 && err?.expose) {
+      res
+        .status(status)
+        .json({ error: "The request could not be read.", code: "BAD_REQUEST" });
+      return;
+    }
+    console.error(err);
+    if (err?.upstream) {
+      res.status(502).json({ error: err.message, code: "UPSTREAM_ERROR" });
+      return;
+    }
+    res
+      .status(500)
+      .json({ error: "Something went wrong.", code: "INTERNAL_ERROR" });
+  },
+);
 
-app.listen(PORT, HOST, () => console.log(`Afterglow API at http://${HOST}:${PORT}`));
+app.listen(PORT, HOST, () =>
+  console.log(`Afterglow API at http://${HOST}:${PORT}`),
+);

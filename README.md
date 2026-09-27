@@ -41,9 +41,13 @@ Then open `http://127.0.0.1:3001`. The API has no accounts, so it only listens o
 ## Checks
 
 ```bash
+npm run format:check
+npm run lint
 npm run typecheck
 npm test
 npm run build
 ```
+
+Run `npm run format` to apply Prettier formatting.
 
 VN metadata is provided by the [VNDB Kana API](https://api.vndb.org/kana) and remains subject to its terms and data license.

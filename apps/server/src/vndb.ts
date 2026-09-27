@@ -39,8 +39,7 @@ async function cachedFetch<T>(
     args: [key],
   });
   const hit = cached.rows[0] as unknown as
-    | { value: string; expires_at: number }
-    | undefined;
+    { value: string; expires_at: number } | undefined;
   if (hit && Number(hit.expires_at) > Date.now())
     return JSON.parse(String(hit.value)) as T;
   let result: T;
@@ -186,7 +185,8 @@ export async function searchTags(
     if (q) predicates.push(["search", "=", q]);
     if (category) predicates.push(["category", "=", category]);
     const body: any = {
-      fields: "name,aliases,description,category,searchable,applicable,vn_count",
+      fields:
+        "name,aliases,description,category,searchable,applicable,vn_count",
       results: 50,
       page,
       sort: q ? "searchrank" : "vn_count",

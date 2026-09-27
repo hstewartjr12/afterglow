@@ -50,10 +50,7 @@ const platformName = (p: string) => platformLabels[p] ?? p.toUpperCase();
 const today = () => new Date().toISOString().slice(0, 10);
 function activateOnKey(activate: () => void) {
   return (e: React.KeyboardEvent<HTMLElement>) => {
-    if (
-      e.target === e.currentTarget &&
-      (e.key === "Enter" || e.key === " ")
-    ) {
+    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       activate();
     }
@@ -486,8 +483,8 @@ function Discover({
   ].filter(Boolean).length;
   const active = Boolean(
     term ||
-      filterCount ||
-      (filters.sort !== "rating" && filters.sort !== "searchrank"),
+    filterCount ||
+    (filters.sort !== "rating" && filters.sort !== "searchrank"),
   );
   const years = [
     ...new Set([new Date().getFullYear(), 2025, 2020, 2015, 2010, 2000, 1990]),
@@ -1486,7 +1483,9 @@ function Detail({
             </div>
             <div>
               <dt>PLATFORM</dt>
-              <dd>{d.platforms.slice(0, 5).map(platformName).join(", ") || "—"}</dd>
+              <dd>
+                {d.platforms.slice(0, 5).map(platformName).join(", ") || "—"}
+              </dd>
             </div>
             <div>
               <dt>VNDB ID</dt>
@@ -1694,7 +1693,9 @@ function Detail({
             <p className="reading-dates">
               {form.startedAt && <>STARTED {form.startedAt.slice(0, 10)}</>}
               {form.startedAt && form.completedAt && " · "}
-              {form.completedAt && <>FINISHED {form.completedAt.slice(0, 10)}</>}
+              {form.completedAt && (
+                <>FINISHED {form.completedAt.slice(0, 10)}</>
+              )}
             </p>
           )}
           <label>
