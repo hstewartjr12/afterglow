@@ -59,6 +59,6 @@ npm run build && npm start   # in one terminal
 npm run screenshots          # in another; add -- --theme=dark for dark mode
 ```
 
-The first run may ask you to install Chromium with `npx playwright install chromium`. The images include your library and taste profile, so look them over before committing.
+Run `npm install` after pulling so Playwright is available, and the first time also run `npx playwright install chromium`. The images include your library and taste profile, so look them over before committing.
 
 VN metadata is provided by the [VNDB Kana API](https://api.vndb.org/kana) and remains subject to its terms and data license.

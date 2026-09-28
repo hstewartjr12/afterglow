@@ -103,7 +103,14 @@ async function main() {
       .map((arg) => arg.replace(/^--/, "").split("="))
       .map(([key, value]) => [key, value ?? "true"]),
   );
-  const { chromium } = await import("playwright");
+  let chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch {
+    throw new Error(
+      "Playwright is not installed yet. Run npm install, then npx playwright install chromium.",
+    );
+  }
   let browser;
   try {
     browser = await chromium.launch();
