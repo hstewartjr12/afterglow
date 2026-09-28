@@ -303,11 +303,15 @@ describe("discovery and library improvements", () => {
       within(dialog).getByRole("button", { name: "Add to library" }),
     );
     expect(document.body.style.overflow).toBe("hidden");
+    const opener = screen.getByRole("button", { name: /Alpha Story/ });
+    const focus = vi.spyOn(opener, "focus");
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: /Alpha Story/ })).toHaveFocus();
+    expect(opener).toHaveFocus();
+    // Restoring focus must not scroll a partly off-screen card into view.
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     expect(document.body.style.overflow).toBe("");
   });
 
