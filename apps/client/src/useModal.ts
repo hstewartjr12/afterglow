@@ -58,7 +58,8 @@ export function useModal<T extends HTMLElement>() {
     return () => {
       document.removeEventListener("keydown", trap);
       document.body.style.overflow = overflow;
-      if (opener?.isConnected) opener.focus();
+      // Don't scroll the page to bring a partly off-screen opener into view.
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
   return ref;
