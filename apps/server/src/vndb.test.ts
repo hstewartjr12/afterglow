@@ -4,7 +4,7 @@ vi.mock("./db.js", () => ({
   sqlite: { execute: vi.fn(async () => ({ rows: [] })) },
 }));
 import { sqlite } from "./db.js";
-import { getVn, searchVns } from "./vndb.js";
+import { fetchCover, getVn, isCoverUrl, searchVns } from "./vndb.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -112,5 +112,74 @@ describe("concurrent VN requests", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     await getVn("v1");
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("upstream outages", () => {
+  it("serves expired cached data when VNDB cannot be reached", async () => {
+    const stale = { results: [{ id: "v7", title: "Cached" }] };
+    vi.mocked(sqlite.execute).mockResolvedValueOnce({
+      rows: [{ value: JSON.stringify(stale), expires_at: Date.now() - 1000 }],
+    } as any);
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect(await getVn("v7")).toEqual(stale.results[0]);
+  });
+
+  it("reports network failures as upstream errors", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(getVn("v8")).rejects.toMatchObject({
+      upstream: true,
+      message: "VNDB could not be reached.",
+    });
+  });
+});
+
+describe("requested fields", () => {
+  const fieldsOf = () =>
+    String(
+      JSON.parse(vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string).fields,
+    ).split(",");
+
+  it("leaves descriptions out of list results", async () => {
+    const result = await searchVns({ q: "", page: 3 });
+    expect(fieldsOf()).not.toContain("description");
+    expect(result.results[0]).not.toHaveProperty("description");
+  });
+
+  it("includes descriptions and aliases for a single title", async () => {
+    await getVn("v42");
+    expect(fieldsOf()).toEqual(
+      expect.arrayContaining(["description", "aliases"]),
+    );
+  });
+});
+
+describe("cover proxy", () => {
+  it("only accepts https URLs on VNDB's own hosts", () => {
+    expect(isCoverUrl("https://t.vndb.org/cv/12/34512.jpg")).toBe(true);
+    expect(isCoverUrl("https://vndb.org/cv/1.jpg")).toBe(true);
+    expect(isCoverUrl("http://t.vndb.org/cv/1.jpg")).toBe(false);
+    expect(isCoverUrl("https://t.vndb.org.evil.test/cv/1.jpg")).toBe(false);
+    expect(isCoverUrl("https://localhost:3001/api/library")).toBe(false);
+    expect(isCoverUrl("not a url")).toBe(false);
+  });
+
+  it("passes images through and rejects anything else", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(new Uint8Array([1, 2, 3]), {
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    const cover = await fetchCover("https://t.vndb.org/cv/1.jpg");
+    expect(cover.type).toBe("image/jpeg");
+    expect([...cover.body]).toEqual([1, 2, 3]);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("<html>", { headers: { "content-type": "text/html" } }),
+    );
+    await expect(
+      fetchCover("https://t.vndb.org/cv/2.jpg"),
+    ).rejects.toMatchObject({
+      upstream: true,
+    });
   });
 });

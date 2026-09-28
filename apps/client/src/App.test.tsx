@@ -1,5 +1,124 @@
-import {cleanup,fireEvent,render,screen,waitFor} from "@testing-library/react"; import {QueryClient,QueryClientProvider} from "@tanstack/react-query"; import {afterEach,beforeEach,describe,expect,it,vi} from "vitest"; import App from "./App";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
 afterEach(cleanup);
-beforeEach(()=>{vi.stubGlobal("fetch",vi.fn(async(input:RequestInfo|URL)=>{const url=String(input);const body=url.includes("preferences")?{tagPreferences:[],preferredLengths:[],preferredPlatforms:[],completed:false}:url.includes("/search?")?{results:[],count:0}:[];return {ok:true,status:200,json:async()=>body} as Response}))});
-function renderApp(){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});return render(<QueryClientProvider client={client}><App/></QueryClientProvider>)}
-describe("Afterglow shell",()=>{it("renders the editorial brand and primary navigation",()=>{renderApp();expect(screen.getByRole("button",{name:"AFTERGLOW アフターグロウ"})).toBeInTheDocument();expect(screen.getByRole("button",{name:"DISCOVER"})).toBeInTheDocument();expect(screen.getByRole("button",{name:"MY TASTE"})).toBeInTheDocument()});it("sends Discover selections to the search API",async()=>{renderApp();fireEvent.click(screen.getByRole("button",{name:"DISCOVER"}));fireEvent.change(screen.getByRole("combobox",{name:"PLATFORM"}),{target:{value:"swi"}});fireEvent.change(screen.getByRole("combobox",{name:"LENGTH"}),{target:{value:"2"}});fireEvent.change(screen.getByRole("combobox",{name:"MINIMUM RATING"}),{target:{value:"8"}});await waitFor(()=>expect(vi.mocked(fetch).mock.calls.some(([url])=>{const value=String(url);return value.includes("platform=swi")&&value.includes("length=2")&&value.includes("rating=8")})).toBe(true))});it("gives preference removal controls descriptive names",async()=>{vi.mocked(fetch).mockImplementation(async(input:RequestInfo|URL)=>{const url=String(input);const body=url.includes("preferences")?{tagPreferences:[{id:"g1",name:"Mystery",weight:3}],preferredLengths:[],preferredPlatforms:[],completed:true}:[];return{ok:true,status:200,json:async()=>body}as Response});renderApp();fireEvent.click(screen.getByRole("button",{name:"MY TASTE"}));expect(await screen.findByRole("button",{name:"Remove Mystery from love tags"})).toBeInTheDocument()});it("searches directly from the header",async()=>{renderApp();const input=screen.getByRole("textbox",{name:"Search titles and aliases"});fireEvent.change(input,{target:{value:"clannad"}});fireEvent.keyDown(input,{key:"Enter"});expect(await screen.findByRole("heading",{name:"DISCOVER A STORY"})).toBeInTheDocument();await waitFor(()=>expect(vi.mocked(fetch).mock.calls.some(([url])=>{const value=String(url);return value.includes("q=clannad")&&value.includes("sort=searchrank")})).toBe(true))})});
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes("preferences")
+        ? {
+            tagPreferences: [],
+            preferredLengths: [],
+            preferredPlatforms: [],
+            completed: false,
+          }
+        : url.includes("/search?")
+          ? { results: [], count: 0 }
+          : [];
+      return { ok: true, status: 200, json: async () => body } as Response;
+    }),
+  );
+});
+function renderApp() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <App />
+    </QueryClientProvider>,
+  );
+}
+describe("Afterglow shell", () => {
+  it("renders the editorial brand and primary navigation", () => {
+    renderApp();
+    expect(
+      screen.getByRole("button", { name: "Afterglow アフターグロウ" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Discover" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "My taste" }),
+    ).toBeInTheDocument();
+  });
+  it("sends Discover selections to the search API", async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Discover" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Platform" }),
+      {
+        target: { value: "swi" },
+      },
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Length" }), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Minimum rating" }), {
+      target: { value: "8" },
+    });
+    await waitFor(() =>
+      expect(
+        vi.mocked(fetch).mock.calls.some(([url]) => {
+          const value = String(url);
+          return (
+            value.includes("platform=swi") &&
+            value.includes("length=2") &&
+            value.includes("rating=8")
+          );
+        }),
+      ).toBe(true),
+    );
+  });
+  it("gives preference removal controls descriptive names", async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes("preferences")
+        ? {
+            tagPreferences: [{ id: "g1", name: "Mystery", weight: 3 }],
+            preferredLengths: [],
+            preferredPlatforms: [],
+            completed: true,
+          }
+        : [];
+      return { ok: true, status: 200, json: async () => body } as Response;
+    });
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "My taste" }));
+    expect(
+      await screen.findByRole("button", {
+        name: "Remove Mystery from love tags",
+      }),
+    ).toBeInTheDocument();
+  });
+  it("searches directly from the header", async () => {
+    renderApp();
+    const input = screen.getByRole("textbox", {
+      name: "Search titles and aliases",
+    });
+    fireEvent.change(input, { target: { value: "clannad" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(
+      await screen.findByRole("heading", { name: "Discover a story" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        vi.mocked(fetch).mock.calls.some(([url]) => {
+          const value = String(url);
+          return (
+            value.includes("q=clannad") && value.includes("sort=searchrank")
+          );
+        }),
+      ).toBe(true),
+    );
+  });
+});
