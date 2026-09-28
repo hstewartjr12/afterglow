@@ -14,9 +14,13 @@ Recommendations combine manual tag weights with each title's VNDB tag relevance,
 
 ![Afterglow discovery screen showing an explainable visual novel recommendation](docs/images/afterglow-discover.jpg)
 
+![Afterglow discovery screen in dark mode](docs/images/afterglow-discover-dark.jpg)
+
 ### Shape your taste profile
 
 ![Afterglow taste profile with weighted VNDB tags](docs/images/afterglow-taste.jpg)
+
+![Afterglow taste profile in dark mode](docs/images/afterglow-taste-dark.jpg)
 
 ## Start
 
@@ -56,7 +60,7 @@ The README screenshots come from your own running copy, so they show real covers
 
 ```bash
 npm run build && npm start   # in one terminal
-npm run screenshots          # in another; add -- --theme=dark for dark mode
+npm run screenshots          # in another; add -- --theme=dark for the -dark versions
 ```
 
 Run `npm install` after pulling so Playwright is available, and the first time also run `npx playwright install chromium`. The images include your library and taste profile, so look them over before committing.
