@@ -88,7 +88,9 @@ export async function captureScreenshots({
     await shot.prepare(page);
     await settle(page);
     await page.mouse.move(0, 0);
-    const file = path.join(outDir, shot.file);
+    const name =
+      theme === "dark" ? shot.file.replace(/\.jpg$/, "-dark.jpg") : shot.file;
+    const file = path.join(outDir, name);
     await page.screenshot({ path: file, type: "jpeg", quality: 82 });
     written.push(file);
   }
