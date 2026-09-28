@@ -1,0 +1,90 @@
+.big-search {
+  min-height: 64px;
+}
+.filter-bar {
+  padding: 18px 0;
+  border-block: 1px solid var(--line);
+}
+.filter-toggle {
+  display: none;
+}
+.filter-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.filters .select {
+  min-height: 40px;
+  padding-block: 6px;
+}
+.result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 20px 0 28px;
+  scroll-margin-top: 90px;
+}
+.result-count {
+  color: var(--ink-2);
+  font: 500 0.9375rem var(--font-mono);
+}
+.active-filters {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.active-filters .chip {
+  min-height: 32px;
+  padding: 4px 10px 4px 14px;
+}
+.result-tools {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-left: auto;
+}
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sort-control .select {
+  width: auto;
+  min-height: 38px;
+  padding-block: 4px;
+}
+.catalogue {
+  transition: opacity 0.25s;
+}
+.catalogue.is-refreshing {
+  opacity: 0.55;
+}
+@media (max-width: 800px) {
+  .filter-toggle {
+    display: inline-flex;
+  }
+  .filters {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 16px;
+  }
+  .filters.filters-open {
+    display: grid;
+  }
+  .result-tools {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+}
+@media (max-width: 420px) {
+  /* Full-width filters so option names like "Nintendo Switch" fit. */
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}

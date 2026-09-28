@@ -1,0 +1,103 @@
+/*
+ * Cover tints. A `.tinted` region borrows its title's cover color for a few
+ * accents: labels, meters, the dialogue name plate, hover shadows, progress.
+ * Colors arrive pre-adjusted for contrast in each theme; without one, the
+ * region falls back to the app's own accent. Buttons and navigation always
+ * keep the app accent so the interface stays consistent.
+ */
+@property --tint {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #b3302a;
+}
+.tinted {
+  --tint: var(--accent);
+  --on-tint: var(--on-accent);
+  transition: --tint 0.7s ease;
+}
+.tinted[style*="--tint-light"] {
+  --tint: var(--tint-light);
+  --on-tint: #fff9f2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tinted[style*="--tint-dark"] {
+    --tint: var(--tint-dark);
+    --on-tint: #0d0b10;
+  }
+}
+:root[data-theme="dark"] .tinted[style*="--tint-dark"] {
+  --tint: var(--tint-dark);
+  --on-tint: #0d0b10;
+}
+.tinted {
+  --tint-soft: color-mix(in srgb, var(--tint) 14%, var(--surface));
+}
+.tint-scope {
+  display: contents;
+}
+
+/* Featured story and detail sheet */
+.tinted .label-accent,
+.tinted .vndb-link {
+  color: var(--tint);
+}
+.tinted .affinity-fill {
+  stroke: var(--tint);
+}
+.tinted .affinity-value,
+.tinted .affinity-heart {
+  color: var(--tint);
+}
+.tinted .vn-box-name {
+  background: var(--tint);
+  color: var(--on-tint);
+}
+.tinted .vn-box-next {
+  color: var(--tint);
+}
+.hero.tinted .hero-sky::after {
+  background: linear-gradient(
+    180deg,
+    transparent 35%,
+    color-mix(in srgb, var(--tint) 12%, transparent) 85%,
+    transparent 100%
+  );
+}
+.detail-sheet.tinted {
+  border-top: 4px solid var(--tint);
+}
+.tinted .tag-strength u {
+  background: var(--tint);
+}
+.tinted .rating-scale button.is-filled {
+  border-color: var(--tint);
+  background: var(--tint-soft);
+}
+.tinted .rating-scale button[aria-pressed="true"] {
+  background: var(--tint);
+  color: var(--on-tint);
+}
+.tinted .tracker .chip:has(input:checked) {
+  border-color: var(--tint);
+  background: var(--tint-soft);
+}
+.tinted .text-skeleton i {
+  background-color: var(--tint-soft);
+}
+
+/* Cards: each cover casts its own colored shadow on hover */
+.vn-card.tinted:hover .cover {
+  box-shadow: 9px 9px 0 var(--tint);
+}
+
+/* Library */
+.tinted .progress > span {
+  background: var(--tint);
+}
+.continue-card .tinted .cover,
+.continue-card .cover {
+  box-shadow: 4px 4px 0 var(--tint, var(--shadow));
+}
+.ledger-row:hover .ledger-chevron {
+  color: var(--tint, var(--accent));
+}

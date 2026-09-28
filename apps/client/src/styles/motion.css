@@ -1,0 +1,589 @@
+/*
+ * Motion and visual-novel flourishes. Everything here is decorative and is
+ * switched off by the reduced-motion block in components.css.
+ */
+
+/* Chapter-card eyecatch between pages */
+.eyecatch {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background-color: var(--surface);
+  background-image:
+    radial-gradient(var(--grain) 0.6px, transparent 0.9px),
+    linear-gradient(
+      90deg,
+      transparent calc(50% - 0.5px),
+      var(--line) 50%,
+      transparent calc(50% + 0.5px)
+    );
+  background-size:
+    5px 5px,
+    100% 100%;
+}
+.eyecatch::before {
+  /* A red page edge, like the fore-edge of a book, leading the sweep. */
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--accent);
+}
+.eyecatch-card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 32px 48px;
+  text-align: center;
+}
+.eyecatch-chapter {
+  color: var(--ink-2);
+  font: 400 italic var(--step-1) var(--font-text);
+}
+.eyecatch-rule {
+  width: 64px;
+  border-top: 2px solid var(--accent);
+}
+.eyecatch-en {
+  font: 700 clamp(2.5rem, 7vw, 5rem) / 1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.eyecatch-jp {
+  color: var(--accent);
+  font-size: var(--step-1);
+  letter-spacing: 0.5em;
+}
+
+/* Title-screen hero: a dusk sky behind the featured story */
+.hero {
+  padding-inline: 0;
+}
+.hero-sky {
+  /* Reaches up behind the frosted header and fades out below the hero, so the
+     dusk light blends into the page instead of ending at a hard edge. */
+  position: absolute;
+  z-index: -1;
+  inset: -140px calc(var(--gutter) * -1) -140px;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    #000 18%,
+    #000 62%,
+    transparent 100%
+  );
+}
+.glow-layer {
+  position: absolute;
+  inset: 0;
+}
+.hero-sky .glow {
+  inset: 0 -10%;
+  height: auto;
+  /* A long, eased falloff so the glow never shows an edge. */
+  mask-image: radial-gradient(
+    ellipse 70% 60% at 24% 40%,
+    #000 0%,
+    rgb(0 0 0 / 0.55) 40%,
+    rgb(0 0 0 / 0.15) 65%,
+    transparent 88%
+  );
+}
+@media (max-width: 700px) {
+  .hero-sky .glow {
+    mask-image: radial-gradient(
+      ellipse 130% 38% at 28% 22%,
+      #000 0%,
+      rgb(0 0 0 / 0.5) 40%,
+      rgb(0 0 0 / 0.12) 68%,
+      transparent 92%
+    );
+  }
+}
+.hero-sky::after {
+  /* Dusk: warm light low on the horizon, fading into the page. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 40%,
+    color-mix(in srgb, var(--amber) 10%, transparent) 85%,
+    transparent 100%
+  );
+}
+.halftone {
+  /* Manga screentone, fading out toward the top of the hero. */
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--ink) 0.9px, transparent 1.3px);
+  background-size: 7px 7px;
+  opacity: 0.07;
+  mask-image: linear-gradient(20deg, #000 0%, transparent 45%);
+}
+.motes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--mote-color);
+  opacity: 0.85;
+}
+.sprite-float {
+  animation: sprite-float 7s ease-in-out infinite;
+}
+@keyframes sprite-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.menu-choice {
+  position: relative;
+  min-height: 44px;
+  padding: 8px 12px 8px 28px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 500 var(--step-0) var(--font-text);
+  font-style: italic;
+}
+.menu-choice::before {
+  /* The VN title-menu cursor. */
+  content: "◆";
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  color: var(--accent);
+  font-size: 0.625rem;
+  font-style: normal;
+  opacity: 0;
+  transform: translate(-6px, -50%);
+  transition:
+    opacity 0.2s,
+    transform 0.2s var(--ease);
+}
+.menu-choice:hover,
+.menu-choice:focus-visible {
+  color: var(--ink);
+}
+.menu-choice:hover::before,
+.menu-choice:focus-visible::before {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+/* Dialogue box typing */
+.vn-rest {
+  color: transparent;
+}
+.vn-box li.is-pending::before,
+.vn-box li:has(.vn-rest:not(:empty))::after {
+  color: transparent;
+}
+.vn-box.is-typing {
+  cursor: pointer;
+}
+.vn-box.is-typing .vn-box-next {
+  opacity: 0;
+}
+
+/* Affinity meter */
+.affinity {
+  display: inline-grid;
+  justify-items: center;
+  gap: 8px;
+}
+.affinity-ring {
+  position: relative;
+  width: 132px;
+  aspect-ratio: 1;
+}
+.affinity-small .affinity-ring {
+  width: 88px;
+}
+.affinity-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.affinity-track,
+.affinity-fill {
+  fill: none;
+  stroke-width: 5;
+}
+.affinity-track {
+  stroke: var(--line);
+}
+.affinity-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s var(--ease);
+}
+.affinity-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font: 700 2.75rem / 1 var(--font-display);
+}
+.affinity-small .affinity-value {
+  font-size: 1.875rem;
+}
+.affinity-value small {
+  font-size: 0.4em;
+}
+.affinity-heart {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 0.875rem;
+  transform: translateX(-50%);
+  animation: heartbeat 2.4s ease-in-out infinite;
+}
+.affinity-small .affinity-heart {
+  width: 18px;
+  height: 18px;
+  font-size: 0.75rem;
+}
+@keyframes heartbeat {
+  0%,
+  60%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  10%,
+  30% {
+    transform: translateX(-50%) scale(1.25);
+  }
+  20% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+/* Cards: a gentle holo tilt and sheen under the pointer */
+.card-cover {
+  perspective: 800px;
+}
+.vn-card .cover {
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition:
+    transform 0.35s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+.vn-card:hover .cover {
+  transition:
+    transform 0.08s linear,
+    box-shadow 0.2s var(--ease);
+}
+.vn-card .cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 0%),
+    rgba(255, 244, 220, 0.35),
+    transparent 55%
+  );
+  opacity: 0;
+  mix-blend-mode: soft-light;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.vn-card:hover .cover::after {
+  opacity: 1;
+}
+
+/* Now loading */
+.loading {
+  display: grid;
+  gap: 20px;
+}
+.now-loading {
+  display: flex;
+  align-items: baseline;
+  color: var(--ink-2);
+  font: 600 var(--step--1) var(--font-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.now-loading span {
+  display: inline-block;
+  animation: bounce-letter 1.4s ease-in-out infinite;
+}
+.now-loading-dots {
+  margin-left: 2px;
+}
+@keyframes bounce-letter {
+  0%,
+  60%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translateY(-4px);
+    color: var(--accent);
+  }
+}
+
+/* Section headings with vertical Japanese, set like a book spine */
+@media (min-width: 1200px) {
+  .section-head {
+    position: relative;
+  }
+  .section-head .jp {
+    position: absolute;
+    /* Centered in the page gutter, clear of the red rail. */
+    left: calc(var(--gutter) / -2 - 0.5em);
+    top: 4px;
+    writing-mode: vertical-rl;
+    letter-spacing: 0.3em;
+    line-height: 1;
+  }
+}
+
+/* Tag choices as visual-novel choice boxes */
+.tag-popover {
+  width: 300px;
+}
+.choices {
+  display: grid;
+  gap: 6px;
+}
+.tag-popover .choice {
+  position: relative;
+  min-height: 42px;
+  padding: 8px 14px 8px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  font: 500 0.9375rem var(--font-text);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+.tag-popover .choice::before {
+  content: "▶";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  color: var(--accent);
+  font-size: 0.625rem;
+  opacity: 0;
+  transform: translate(-4px, -50%);
+  transition:
+    opacity 0.15s,
+    transform 0.15s var(--ease);
+}
+.tag-popover .choice:hover:not(:disabled),
+.tag-popover .choice:focus-visible {
+  border-color: var(--ink);
+}
+.tag-popover .choice:hover::before,
+.tag-popover .choice:focus-visible::before {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+.tag-popover .choice.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+/* A small burst of hearts when a tag is loved */
+.detail-tag {
+  position: relative;
+}
+.heart-burst {
+  position: absolute;
+  right: 36px;
+  top: 50%;
+  pointer-events: none;
+}
+.heart-burst i {
+  position: absolute;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-style: normal;
+  animation: heart-fly 0.8s var(--ease) forwards;
+  --angle: calc(var(--i) * 51deg - 90deg);
+}
+@keyframes heart-fly {
+  from {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateX(0)
+      rotate(calc(var(--angle) * -1)) scale(0.6);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(28px)
+      rotate(calc(var(--angle) * -1)) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sprite-float,
+  .affinity-heart,
+  .now-loading span,
+  .vn-thinking i,
+  .text-skeleton i {
+    animation: none;
+  }
+  .vn-card .cover {
+    transform: none;
+  }
+}
+
+/* Loading placeholders that hold the space of the text they stand in for */
+.text-skeleton {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.text-skeleton i {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    105deg,
+    var(--skeleton-a) 30%,
+    var(--skeleton-b) 45%,
+    var(--skeleton-a) 60%
+  );
+  background-size: 300%;
+  animation: shimmer 1.5s infinite;
+}
+.text-skeleton i:nth-child(3) {
+  width: 92%;
+}
+.text-skeleton i:last-child {
+  width: 64%;
+}
+
+/* A character about to speak */
+.vn-thinking {
+  display: flex;
+  gap: 6px;
+  min-height: 1.5em;
+  align-items: center;
+  padding: 4px 0;
+}
+.vn-thinking i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: thinking 1.2s ease-in-out infinite;
+}
+.vn-thinking i:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.vn-thinking i:nth-child(4) {
+  animation-delay: 0.3s;
+}
+@keyframes thinking {
+  0%,
+  70%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* Theme switch: the new palette spreads out from the button that was pressed */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: theme-reveal 0.45s var(--ease);
+}
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--reveal-x, 50%) var(--reveal-y, 0));
+  }
+  to {
+    clip-path: circle(150vmax at var(--reveal-x, 50%) var(--reveal-y, 0));
+  }
+}
+
+/* Navigation underline glides to the active chapter */
+.site-header nav .nav-link.active::after {
+  display: none;
+}
+.nav-underline {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  border-bottom: 2px solid var(--accent);
+}
+@media (max-width: 800px) {
+  .nav-underline {
+    display: none;
+  }
+}
+
+/* Primary buttons: a soft sheen passes over, and the arrow leans forward */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+.btn-primary:hover:not(:disabled)::after {
+  transform: translateX(120%);
+  transition: transform 0.7s var(--ease);
+}
+.btn-primary svg {
+  transition: transform 0.2s var(--ease);
+}
+.btn-primary:hover:not(:disabled) svg {
+  transform: translateX(3px);
+}
+
+/* The rating fills left to right like a meter */
+.rating-scale button {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+  transition-delay: calc(var(--n, 0) * 22ms);
+}
+
+/* Favoriting gives the heart a little pop */
+.favorite-toggle[aria-pressed="true"] svg {
+  animation: heart-pop 0.45s var(--ease);
+}
+@keyframes heart-pop {
+  40% {
+    transform: scale(1.45);
+  }
+}

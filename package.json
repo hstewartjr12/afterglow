@@ -2,13 +2,33 @@
   "name": "afterglow",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently -n server,client -c magenta,cyan \"npm run dev -w @afterglow/server\" \"npm run dev -w @afterglow/client\"",
     "build": "npm run build -w @afterglow/shared && npm run build -w @afterglow/server && npm run build -w @afterglow/client",
+    "start": "npm run start -w @afterglow/server",
     "test": "npm run test -w @afterglow/server && npm run test -w @afterglow/client",
-    "typecheck": "npm run typecheck -w @afterglow/shared && npm run typecheck -w @afterglow/server && npm run typecheck -w @afterglow/client"
+    "typecheck": "npm run typecheck -w @afterglow/shared && npm run typecheck -w @afterglow/server && npm run typecheck -w @afterglow/client",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "screenshots": "node scripts/readme-screenshots.mjs"
   },
-  "devDependencies": {"concurrently": "^9.2.1"},
-  "engines": {"node": ">=22"}
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "playwright": "1.56",
+    "prettier": "^3.9.9",
+    "typescript-eslint": "^8.70.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module"
 }
