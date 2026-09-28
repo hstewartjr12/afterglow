@@ -14,7 +14,7 @@
     "@afterglow/shared": "*",
     "@libsql/client": "^0.15.10",
     "cors": "^2.8.5",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "^0.45.3",
     "express": "^5.1.0",
     "zod": "^3.25.76"
   },
@@ -23,6 +23,6 @@
     "@types/express": "^5.0.3",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.2"
   }
 }
