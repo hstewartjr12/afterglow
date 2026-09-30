@@ -646,9 +646,14 @@ nav .nav-link.active {
 }
 @media (max-width: 800px) {
   .modal-layer {
-    background: var(--bg);
+    background: linear-gradient(to right, var(--accent) 6px, var(--bg) 6px);
+    --overlay-bottom-space: max(0px, 100lvh - var(--overlay-height));
   }
   .modal-backdrop {
+    left: 6px;
+    /* The scrolling sheet itself continues behind Safari's floating controls. */
+    height: 100vh;
+    height: 100lvh;
     padding: 0;
     align-items: stretch;
   }
@@ -660,6 +665,29 @@ nav .nav-link.active {
     border: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+  .modal-layer .sheet {
+    padding-bottom: calc(
+      var(--sheet-bottom-padding, 32px) + var(--overlay-bottom-space)
+    );
+  }
+  .modal-layer:has(
+    textarea:focus,
+    input:not([type]):focus,
+    input[type="text"]:focus,
+    input[type="search"]:focus
+  ) {
+    --overlay-bottom-space: 0px;
+  }
+  .modal-layer:has(
+      textarea:focus,
+      input:not([type]):focus,
+      input[type="text"]:focus,
+      input[type="search"]:focus
+    )
+    .modal-backdrop {
+    /* Keep editing controls in reach when Safari opens the keyboard. */
+    height: var(--overlay-height);
   }
   .tag-index {
     overflow: auto;
