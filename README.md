@@ -1,5 +1,9 @@
 # Afterglow
 
+[**Try the live demo →**](https://afterglow-demo-hstewartjr12.hstew21.chatgpt.site) — no installation or account required.
+
+The demo saves your library, notes, and taste preferences in your browser. It does not sync across devices, and clearing site data removes your demo saves.
+
 A local-first visual novel discovery app powered by VNDB. Search titles, build a personal library, search VNDB's full tag catalogue, set weighted taste preferences, and get explainable recommendations.
 
 Discover supports paginated results, platform and reading-length filters, release years, minimum ratings, and sorting. Your library can be searched by title or private notes, filtered by reading status and favorites, and sorted by rating, progress, title, or recent updates.
