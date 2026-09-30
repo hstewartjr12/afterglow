@@ -1,6 +1,6 @@
 # Afterglow demo
 
-[Try the hosted demo](https://afterglow-demo-hstewartjr12.new-shell-7108.chatgpt.site)
+[Try the hosted demo](https://afterglow-demo-hstewartjr12.hstew21.chatgpt.site)
 
 A separate, publicly shareable demo of [Afterglow](https://github.com/hstewartjr12/afterglow). It uses the same interface and recommendation scoring as the local app, with each visitor's library, notes, and taste preferences stored in their browser using IndexedDB. No account or API key is needed.
 
