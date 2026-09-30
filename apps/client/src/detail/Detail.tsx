@@ -70,7 +70,7 @@ export function Detail({
   onClose: () => void;
   recommendation?: Recommendation;
 }) {
-  const modalRef = useModal<HTMLElement>();
+  const modalRef = useModal<HTMLElement>({ lockScroll: false });
   const qc = useQueryClient();
   const toast = useToast();
   const detail = useQuery({
