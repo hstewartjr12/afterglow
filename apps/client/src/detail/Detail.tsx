@@ -13,6 +13,7 @@ import type {
 import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { useModal } from "../useModal";
+import { PageOverlay } from "../components/PageOverlay";
 import { invalidateMatches } from "../queries";
 import {
   altTitle,
@@ -242,16 +243,10 @@ export function Detail({
         : "All changes saved";
 
   return (
-    <m.div
-      className="modal-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          if (activeTag) setActiveTag(null);
-          else requestClose();
-        }
+    <PageOverlay
+      onDismiss={() => {
+        if (activeTag) setActiveTag(null);
+        else requestClose();
       }}
     >
       <m.article
@@ -675,6 +670,6 @@ export function Detail({
           )}
         </m.aside>
       </m.article>
-    </m.div>
+    </PageOverlay>
   );
 }

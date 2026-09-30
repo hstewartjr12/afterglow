@@ -1,6 +1,9 @@
 import * as m from "motion/react-m";
+import { createPortal } from "react-dom";
 import type { View } from "../types";
 import { easeOut } from "../lib/motion";
+import { usePageViewport } from "../lib/viewport";
+import { usePageScrollLock } from "../useModal";
 
 const titles: Record<View, { chapter: string; en: string; jp: string }> = {
   home: { chapter: "Prologue", en: "Afterglow", jp: "夕映え" },
@@ -22,9 +25,12 @@ export function Eyecatch({
   onCovered: () => void;
 }) {
   const title = titles[view];
-  return (
+  const viewportStyle = usePageViewport();
+  usePageScrollLock();
+  return createPortal(
     <m.div
       className="eyecatch"
+      style={viewportStyle}
       aria-hidden="true"
       initial={{ clipPath: "polygon(0 0, 0 0, -12% 100%, -12% 100%)" }}
       animate={{
@@ -40,22 +46,25 @@ export function Eyecatch({
         if (definition !== "exit") setTimeout(onCovered, 140);
       }}
     >
-      <m.div
-        className="eyecatch-card"
-        initial={{ y: 12, opacity: 0 }}
-        animate={{
-          y: 0,
-          opacity: 1,
-          transition: { delay: 0.1, duration: 0.25 },
-        }}
-      >
-        <span className="eyecatch-chapter">{title.chapter}</span>
-        <span className="eyecatch-rule" />
-        <span className="eyecatch-en">{title.en}</span>
-        <span className="eyecatch-jp jp" lang="ja">
-          {title.jp}
-        </span>
-      </m.div>
-    </m.div>
+      <div className="eyecatch-viewport">
+        <m.div
+          className="eyecatch-card"
+          initial={{ y: 12, opacity: 0 }}
+          animate={{
+            y: 0,
+            opacity: 1,
+            transition: { delay: 0.1, duration: 0.25 },
+          }}
+        >
+          <span className="eyecatch-chapter">{title.chapter}</span>
+          <span className="eyecatch-rule" />
+          <span className="eyecatch-en">{title.en}</span>
+          <span className="eyecatch-jp jp" lang="ja">
+            {title.jp}
+          </span>
+        </m.div>
+      </div>
+    </m.div>,
+    document.body,
   );
 }

@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import type { Preferences, VndbTag } from "@afterglow/shared";
 import { api } from "../api";
 import { useModal } from "../useModal";
+import { PageOverlay } from "../components/PageOverlay";
 import { plural, tagWeights, weightLabel } from "../lib/format";
 import { ErrorState } from "../components/status";
 
@@ -58,13 +59,7 @@ export function TagIndex({
     : tagWeights;
   const currentPage = tags.data?.page ?? page;
   return (
-    <m.div
-      className="modal-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <PageOverlay onDismiss={onClose}>
       <m.section
         ref={modalRef}
         tabIndex={-1}
@@ -192,6 +187,6 @@ export function TagIndex({
           </button>
         </footer>
       </m.section>
-    </m.div>
+    </PageOverlay>
   );
 }

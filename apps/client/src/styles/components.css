@@ -175,8 +175,8 @@ nav .nav-link.active {
     position: absolute;
     z-index: 60;
     inset: 0;
-    min-height: calc(var(--nav-top) + 100vh);
-    min-height: calc(var(--nav-top) + 100lvh);
+    min-height: calc(var(--overlay-top) + 100vh);
+    min-height: calc(var(--overlay-top) + 100lvh);
   }
   .nav-scrim {
     position: absolute;
@@ -197,8 +197,8 @@ nav .nav-link.active {
   }
   .mobile-nav-content {
     position: absolute;
-    inset: var(--nav-top) 0 auto;
-    height: var(--nav-height);
+    inset: var(--overlay-top) 0 auto;
+    height: var(--overlay-height);
     padding: 84px 24px 24px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -611,15 +611,22 @@ nav .nav-link.active {
 }
 
 /* Modals */
-.modal-backdrop {
-  position: fixed;
+.modal-layer {
+  position: absolute;
   z-index: 100;
   inset: 0;
+  min-height: calc(var(--overlay-top) + 100vh);
+  min-height: calc(var(--overlay-top) + 100lvh);
+  background: var(--scrim);
+}
+.modal-backdrop {
+  position: absolute;
+  inset: var(--overlay-top) 0 auto;
+  height: var(--overlay-height);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px;
-  background: var(--scrim);
   overflow: auto;
 }
 .sheet {
@@ -638,17 +645,24 @@ nav .nav-link.active {
   right: 12px;
 }
 @media (max-width: 800px) {
+  .modal-layer {
+    background: var(--bg);
+  }
   .modal-backdrop {
     padding: 0;
     align-items: stretch;
   }
   .sheet {
     width: 100% !important;
-    max-height: none !important;
-    min-height: 100%;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+  .tag-index {
+    overflow: auto;
   }
 }
 

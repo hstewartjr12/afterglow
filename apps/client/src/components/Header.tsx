@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
@@ -7,6 +7,7 @@ import type { View } from "../types";
 import { useTheme, type ThemeChoice } from "../lib/theme";
 import { useModal } from "../useModal";
 import { easeOut, useReducedMotion } from "../lib/motion";
+import { usePageViewport } from "../lib/viewport";
 
 const views: { view: View; label: string }[] = [
   { view: "discover", label: "Discover" },
@@ -121,42 +122,12 @@ function MobileNavigation({
   onSearch: (term: string) => void;
   onClose: () => void;
 }) {
-  // Lock the root below; clipping the body would cut off the page-sized backgrounds.
-  const ref = useModal<HTMLDivElement>({ lockScroll: false });
+  const ref = useModal<HTMLDivElement>();
   const reducedMotion = useReducedMotion();
-  const readViewport = () => ({
-    top: window.scrollY + (window.visualViewport?.offsetTop ?? 0),
-    height: window.visualViewport?.height ?? window.innerHeight,
-  });
-  const [viewport, setViewport] = useState(readViewport);
-  useEffect(() => {
-    const root = document.documentElement;
-    const overflow = root.style.overflow;
-    root.style.overflow = "hidden";
-    const update = () => setViewport(readViewport());
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update);
-    window.visualViewport?.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("scroll", update);
-    return () => {
-      root.style.overflow = overflow;
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update);
-      window.visualViewport?.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("scroll", update);
-    };
-  }, []);
+  const viewportStyle = usePageViewport();
 
   return createPortal(
-    <div
-      className="mobile-nav"
-      style={
-        {
-          "--nav-top": `${viewport.top}px`,
-          "--nav-height": `${viewport.height}px`,
-        } as CSSProperties
-      }
-    >
+    <div className="mobile-nav" style={viewportStyle}>
       <button
         className="nav-scrim"
         aria-label="Close navigation"
@@ -211,6 +182,7 @@ export function Header({
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
     const mobile = window.matchMedia("(max-width: 800px)");
     const resize = () => {
       if (!mobile.matches) setOpen(false);
