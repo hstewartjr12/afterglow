@@ -1,10 +1,12 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { Menu, Monitor, Moon, Search, Sun, X } from "lucide-react";
 import type { View } from "../types";
 import { useTheme, type ThemeChoice } from "../lib/theme";
 import { useModal } from "../useModal";
+import { easeOut, useReducedMotion } from "../lib/motion";
 
 const views: { view: View; label: string }[] = [
   { view: "discover", label: "Discover" },
@@ -121,6 +123,7 @@ function MobileNavigation({
 }) {
   // Lock the root below; clipping the body would cut off the page-sized backgrounds.
   const ref = useModal<HTMLDivElement>({ lockScroll: false });
+  const reducedMotion = useReducedMotion();
   const readViewport = () => ({
     top: window.scrollY + (window.visualViewport?.offsetTop ?? 0),
     height: window.visualViewport?.height ?? window.innerHeight,
@@ -160,7 +163,13 @@ function MobileNavigation({
         tabIndex={-1}
         onClick={onClose}
       />
-      <div className="mobile-nav-panel">
+      <m.div
+        className="mobile-nav-panel"
+        initial={{ clipPath: "inset(0 0 0 100%)" }}
+        animate={{ clipPath: "inset(0 0 0 0%)" }}
+        exit={{ clipPath: "inset(0 0 0 100%)" }}
+        transition={{ duration: reducedMotion ? 0 : 0.25, ease: easeOut }}
+      >
         <div
           ref={ref}
           className="mobile-nav-content"
@@ -185,7 +194,7 @@ function MobileNavigation({
             </div>
           </nav>
         </div>
-      </div>
+      </m.div>
     </div>,
     document.body,
   );
@@ -227,17 +236,20 @@ export function Header({
           アフターグロウ
         </span>
       </button>
-      {open && (
-        <MobileNavigation
-          view={view}
-          onNavigate={go}
-          onSearch={(term) => {
-            setOpen(false);
-            onSearch(term);
-          }}
-          onClose={() => setOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {open && (
+          <MobileNavigation
+            key="mobile-navigation"
+            view={view}
+            onNavigate={go}
+            onSearch={(term) => {
+              setOpen(false);
+              onSearch(term);
+            }}
+            onClose={() => setOpen(false)}
+          />
+        )}
+      </AnimatePresence>
       <nav aria-label="Main">
         <NavigationLinks view={view} onNavigate={go} />
       </nav>
