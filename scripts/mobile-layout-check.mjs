@@ -222,15 +222,19 @@ try {
         const visible = await detail.evaluate((el) => ({
           height: el.getBoundingClientRect().height,
           viewport: visualViewport.height,
+          overflow: getComputedStyle(el).overflowY,
+          rootOverflow: getComputedStyle(document.documentElement).overflowY,
+          appDisplay: getComputedStyle(document.querySelector(".site")).display,
         }));
-        assert.ok(Math.abs(visible.height - visible.viewport) <= 2);
+        assert.ok(visible.height >= visible.viewport);
+        assert.equal(visible.overflow, "visible");
+        assert.equal(visible.rootOverflow, "visible");
+        assert.equal(visible.appDisplay, "none");
         await page.setViewportSize({ width, height: Math.min(height, 400) });
         await page.waitForFunction(
           () =>
-            Math.abs(
-              document.querySelector(".detail-sheet").getBoundingClientRect()
-                .height - visualViewport.height,
-            ) <= 2,
+            document.querySelector(".detail-sheet").getBoundingClientRect()
+              .height >= visualViewport.height,
         );
         await page.setViewportSize({ width, height });
       }
@@ -243,6 +247,10 @@ try {
       await detail
         .getByRole("button", { name: "Remove from library", exact: true })
         .waitFor();
+      await page
+        .getByRole("status")
+        .getByText(`Added ${story.title} to your library`, { exact: true })
+        .waitFor({ state: "visible" });
       await detail.getByRole("button", { name: "Close details" }).click();
       await page.waitForFunction(() => !document.querySelector(".modal-layer"));
       assert.equal(
@@ -273,10 +281,8 @@ try {
         await page.setViewportSize({ width, height: Math.min(height, 400) });
         await page.waitForFunction(
           () =>
-            Math.abs(
-              document.querySelector(".tag-index").getBoundingClientRect()
-                .height - visualViewport.height,
-            ) <= 2,
+            document.querySelector(".tag-index").getBoundingClientRect()
+              .height >= visualViewport.height,
         );
         await index
           .getByRole("button", { name: "Next →" })
@@ -376,7 +382,8 @@ try {
   const toolbarGeometry = await safariDetail.evaluate((el) => ({
     bounds: el.getBoundingClientRect().toJSON(),
     visibleHeight: visualViewport.height,
-    padding: parseFloat(getComputedStyle(el).paddingBottom),
+    overflow: getComputedStyle(el).overflowY,
+    rootOverflow: getComputedStyle(document.documentElement).overflowY,
     continuation:
       document
         .elementFromPoint(100, innerHeight - 20)
@@ -397,19 +404,15 @@ try {
     toolbarGeometry.railUncovered,
     "The detail sheet must leave the page rail visible",
   );
-  assert.ok(
-    toolbarGeometry.padding >= 110,
-    "The last actions need enough clearance above the toolbar",
-  );
+  assert.equal(toolbarGeometry.overflow, "visible");
+  assert.equal(toolbarGeometry.rootOverflow, "visible");
+  await safariPage.evaluate(() => window.scrollTo(0, 300));
+  assert.equal(await safariDetail.evaluate((el) => el.scrollTop), 0);
+  assert.equal(await safariPage.evaluate(() => scrollY), 300);
+  await canvas(safariPage, "safari-toolbar-detail-scrolled", ".modal-layer");
   await safariDetail.getByRole("textbox", { name: /Private notes/ }).focus();
+  await safariPage.setViewportSize({ width: 390, height: 420 });
   await safariPage.evaluate(() => window.setVisibleHeight(420));
-  await safariPage.waitForFunction(
-    () =>
-      Math.abs(
-        document.querySelector(".detail-sheet").getBoundingClientRect().height -
-          420,
-      ) <= 1,
-  );
   await safariDetail
     .getByRole("button", { name: "Add to library", exact: true })
     .scrollIntoViewIfNeeded();
@@ -442,7 +445,7 @@ try {
         "short dialog viewports",
         "no horizontal overflow",
         "chapter transition coverage and overlapping scroll locks",
-        "detail content below the floating toolbar and keyboard clearance",
+        "document scrolling behind the floating toolbar and keyboard clearance",
       ],
       screenshots: out,
     }),

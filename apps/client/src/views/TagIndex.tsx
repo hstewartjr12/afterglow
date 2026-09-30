@@ -35,7 +35,7 @@ export function TagIndex({
   /** Opened from a group's "Add tag": that choice leads each row. */
   focusWeight?: number;
 }) {
-  const modalRef = useModal<HTMLElement>();
+  const modalRef = useModal<HTMLElement>({ lockScroll: false });
   const [term, setTerm] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
