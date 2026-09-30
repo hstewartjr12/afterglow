@@ -1,0 +1,38 @@
+{
+  "name": "afterglow-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "start": "node scripts/preview.mjs",
+    "build": "npm run build -w @afterglow/shared && npm run build -w @afterglow/client && npm run build:worker",
+    "build:worker": "node scripts/build-worker.mjs",
+    "typecheck": "npm run typecheck -w @afterglow/shared && npm run typecheck -w @afterglow/client && tsc -p worker/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:browser": "node scripts/browser-check.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "playwright": "1.56",
+    "prettier": "^3.9.9",
+    "typescript-eslint": "^8.70.1",
+    "esbuild": "^0.25.0",
+    "@types/node": "^22.0.0",
+    "fake-indexeddb": "^6.0.0",
+    "vitest": "^5.0.2"
+  }
+}

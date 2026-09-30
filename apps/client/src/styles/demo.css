@@ -1,0 +1,63 @@
+.demo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem var(--gutter);
+  margin: 0 0 1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+  color: var(--ink-2);
+}
+.demo-notice p {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.8rem;
+}
+.demo-notice strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+.demo-notice > div {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1rem;
+}
+.demo-notice a,
+.demo-notice button {
+  color: var(--ink-2);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.demo-notice button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.demo-notice button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.demo-notice a:hover,
+.demo-notice button:hover {
+  color: var(--accent);
+}
+@media (max-width: 700px) {
+  .demo-notice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .demo-notice p {
+    display: block;
+  }
+  .demo-notice strong {
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+}
