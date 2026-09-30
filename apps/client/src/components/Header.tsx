@@ -106,11 +106,14 @@ export function Header({
         </span>
       </button>
       {open && (
-        <button
-          className="nav-scrim"
-          aria-label="Close navigation"
-          onClick={() => setOpen(false)}
-        />
+        <>
+          <button
+            className="nav-scrim"
+            aria-label="Close navigation"
+            onClick={() => setOpen(false)}
+          />
+          <div className="nav-viewport-fill" aria-hidden="true" />
+        </>
       )}
       <nav className={open ? "open" : ""} aria-label="Main">
         <span className="nav-label label">Contents</span>

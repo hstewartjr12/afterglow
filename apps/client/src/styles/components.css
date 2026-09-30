@@ -120,7 +120,8 @@
   color: var(--bg);
 }
 .menu,
-.nav-scrim {
+.nav-scrim,
+.nav-viewport-fill {
   display: none;
 }
 .site-header nav .nav-link {
@@ -218,6 +219,22 @@
     inset: 0;
     border: 0;
     background: var(--scrim);
+  }
+  .nav-viewport-fill {
+    /* Safari 26 fills below its floating toolbar from a fixed edge's color.
+       The drawer is too narrow to qualify, so provide a full-width sample.
+       WebKit ignores backgrounds on boxes <= 10px high. Text clipping keeps
+       this empty 11px box paintless, and pointer-events lets taps pass through.
+       See WebKit's LocalFrameView::fixedContainerEdges. */
+    display: block;
+    position: fixed;
+    z-index: 41;
+    inset: auto 0 0;
+    height: 11px;
+    background-color: var(--bg);
+    -webkit-background-clip: text;
+    background-clip: text;
+    pointer-events: none;
   }
   .menu {
     position: relative;
