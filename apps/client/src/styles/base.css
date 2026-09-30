@@ -4,16 +4,23 @@
   box-sizing: border-box;
 }
 html {
-  background: var(--bg);
+  /* Paint the rail as page background: Safari clips fixed layers above its toolbar. */
+  background: linear-gradient(to right, var(--accent) 6px, var(--bg) 6px);
   -webkit-text-size-adjust: 100%;
 }
 body {
+  position: relative;
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
   background-color: var(--bg);
-  background-image: radial-gradient(var(--grain) 0.6px, transparent 0.9px);
-  background-size: 5px 5px;
+  background-image:
+    linear-gradient(to right, var(--accent) 6px, transparent 6px),
+    radial-gradient(var(--grain) 0.6px, transparent 0.9px);
+  background-size:
+    100% 100%,
+    5px 5px;
+  background-repeat: no-repeat, repeat;
   color: var(--ink);
   font: 400 var(--step-0) / 1.6 var(--font-text);
   font-synthesis: none;
@@ -89,13 +96,6 @@ p {
 }
 
 /* Page frame */
-.accent-rail {
-  position: fixed;
-  z-index: 30;
-  inset: 0 auto 0 0;
-  width: 6px;
-  background: var(--accent);
-}
 .site {
   /* Cover glows bleed past their sections but must never cause sideways scrolling. */
   overflow-x: clip;
