@@ -302,7 +302,9 @@ describe("discovery and library improvements", () => {
     expect(document.activeElement).toBe(
       within(dialog).getByRole("button", { name: "Add to library" }),
     );
-    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    // Keep the page background paintable below Safari's floating controls.
+    expect(document.body.style.overflow).toBe("");
     const opener = screen.getByRole("button", { name: /Alpha Story/ });
     const focus = vi.spyOn(opener, "focus");
     fireEvent.keyDown(document, { key: "Escape" });
@@ -313,6 +315,7 @@ describe("discovery and library improvements", () => {
     // Restoring focus must not scroll a partly off-screen card into view.
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     expect(document.body.style.overflow).toBe("");
+    expect(document.documentElement.style.overflow).toBe("");
   });
 
   it("clears the profile saved message when the draft changes", async () => {

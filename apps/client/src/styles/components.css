@@ -11,8 +11,6 @@
   border-bottom: 1px solid var(--line);
 }
 .site-header::before {
-  /* The frosted backdrop lives on a layer of its own: backdrop-filter on the
-     header itself would trap the fixed-position mobile drawer inside it. */
   content: "";
   position: absolute;
   z-index: -1;
@@ -45,7 +43,7 @@
   height: 100%;
   margin-left: auto;
 }
-.site-header nav .nav-link {
+nav .nav-link {
   position: relative;
   display: flex;
   align-items: center;
@@ -57,15 +55,15 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.site-header nav .nav-link small {
+nav .nav-link small {
   color: var(--ink-3);
   font: 500 0.75rem var(--font-mono);
   letter-spacing: 0;
 }
-.site-header nav .nav-link:hover {
+nav .nav-link:hover {
   color: var(--accent);
 }
-.site-header nav .nav-link.active {
+nav .nav-link.active {
   color: var(--accent);
 }
 .site-header nav .nav-link.active::after {
@@ -120,7 +118,7 @@
   color: var(--bg);
 }
 .menu,
-.nav-scrim {
+.mobile-nav {
   display: none;
 }
 .site-header nav .nav-link {
@@ -168,35 +166,58 @@
     margin-left: auto;
   }
   .site-header nav {
-    position: fixed;
-    z-index: 40;
+    display: none;
+  }
+  .mobile-nav {
+    /* A body-level page layer paints behind Safari's translucent controls.
+       Its backgrounds cover the document, while content stays in the visible viewport. */
+    display: block;
+    position: absolute;
+    z-index: 60;
+    inset: 0;
+    min-height: calc(var(--overlay-top) + 100vh);
+    min-height: calc(var(--overlay-top) + 100lvh);
+  }
+  .nav-scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: var(--scrim);
+    touch-action: none;
+  }
+  .mobile-nav-panel {
+    position: absolute;
     inset: 0 0 0 auto;
     width: min(340px, 86vw);
-    height: auto;
-    flex-direction: column;
-    gap: 0;
-    padding: 84px 24px 24px;
     border-left: 1px solid var(--line);
     background: var(--bg);
-    /* Clipped rather than translated off-screen, so the closed drawer adds no page width. */
-    clip-path: inset(0 0 0 100%);
-    visibility: hidden;
-    transition:
-      clip-path 0.25s var(--ease),
-      visibility 0.25s;
   }
-  .site-header nav.open {
-    clip-path: inset(0);
-    visibility: visible;
+  .mobile-nav-content {
+    position: absolute;
+    inset: var(--overlay-top) 0 auto;
+    height: var(--overlay-height);
+    padding: 84px 24px 24px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
-  .site-header nav .nav-link {
+  .mobile-nav-content nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .mobile-nav-close {
+    position: absolute;
+    top: 12px;
+    right: var(--gutter);
+  }
+  .mobile-nav .nav-link {
     min-height: 56px;
     padding: 0;
     border-bottom: 1px solid var(--line);
     font-size: 1.25rem;
-  }
-  .site-header nav .nav-link.active::after {
-    display: none;
   }
   .nav-label {
     display: block;
@@ -210,18 +231,6 @@
   }
   .nav-search {
     margin-top: 20px;
-  }
-  .nav-scrim {
-    display: block;
-    position: fixed;
-    z-index: 35;
-    inset: 0;
-    border: 0;
-    background: var(--scrim);
-  }
-  .menu {
-    position: relative;
-    z-index: 45;
   }
 }
 @media (min-width: 801px) {
@@ -602,15 +611,22 @@
 }
 
 /* Modals */
-.modal-backdrop {
-  position: fixed;
+.modal-layer {
+  position: absolute;
   z-index: 100;
   inset: 0;
+  min-height: calc(var(--overlay-top) + 100vh);
+  min-height: calc(var(--overlay-top) + 100lvh);
+  background: var(--scrim);
+}
+.modal-backdrop {
+  position: absolute;
+  inset: var(--overlay-top) 0 auto;
+  height: var(--overlay-height);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px;
-  background: var(--scrim);
   overflow: auto;
 }
 .sheet {
@@ -629,17 +645,24 @@
   right: 12px;
 }
 @media (max-width: 800px) {
+  .modal-layer {
+    background: var(--bg);
+  }
   .modal-backdrop {
     padding: 0;
     align-items: stretch;
   }
   .sheet {
     width: 100% !important;
-    max-height: none !important;
-    min-height: 100%;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+  .tag-index {
+    overflow: auto;
   }
 }
 
