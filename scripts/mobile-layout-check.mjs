@@ -340,6 +340,87 @@ try {
     "",
   );
   await transitionPage.close();
+  const safariPage = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  await safariPage.addInitScript(() => {
+    const viewport = Object.assign(new EventTarget(), {
+      height: 734,
+      width: 390,
+      offsetTop: 0,
+      offsetLeft: 0,
+      scale: 1,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      value: viewport,
+      configurable: true,
+    });
+    window.setVisibleHeight = (height) => {
+      viewport.height = height;
+      viewport.dispatchEvent(new Event("resize"));
+    };
+  });
+  await fixture(safariPage);
+  await safariPage.goto(origin);
+  await safariPage
+    .getByRole("button", { name: "Skip for now", exact: true })
+    .click();
+  await safariPage.locator(".onboarding").waitFor({ state: "hidden" });
+  await safariPage
+    .getByRole("button", { name: "Open story", exact: true })
+    .click();
+  const safariDetail = safariPage.getByRole("dialog", { name: story.title });
+  await safariDetail.waitFor();
+  await canvas(safariPage, "safari-toolbar-detail", ".modal-layer");
+  const toolbarGeometry = await safariDetail.evaluate((el) => ({
+    bounds: el.getBoundingClientRect().toJSON(),
+    visibleHeight: visualViewport.height,
+    padding: parseFloat(getComputedStyle(el).paddingBottom),
+    continuation:
+      document
+        .elementFromPoint(100, innerHeight - 20)
+        ?.closest(".detail-sheet") === el,
+    railUncovered: !document
+      .elementFromPoint(3, innerHeight - 20)
+      ?.closest(".sheet"),
+  }));
+  assert.ok(
+    toolbarGeometry.bounds.bottom >= 843,
+    "The scrolling detail sheet must extend through the toolbar area",
+  );
+  assert.ok(
+    toolbarGeometry.continuation,
+    "Actual detail content, rather than only backdrop color, must continue below the visible viewport",
+  );
+  assert.ok(
+    toolbarGeometry.railUncovered,
+    "The detail sheet must leave the page rail visible",
+  );
+  assert.ok(
+    toolbarGeometry.padding >= 110,
+    "The last actions need enough clearance above the toolbar",
+  );
+  await safariDetail.getByRole("textbox", { name: /Private notes/ }).focus();
+  await safariPage.evaluate(() => window.setVisibleHeight(420));
+  await safariPage.waitForFunction(
+    () =>
+      Math.abs(
+        document.querySelector(".detail-sheet").getBoundingClientRect().height -
+          420,
+      ) <= 1,
+  );
+  await safariDetail
+    .getByRole("button", { name: "Add to library", exact: true })
+    .scrollIntoViewIfNeeded();
+  const actionBounds = await safariDetail
+    .getByRole("button", { name: "Add to library", exact: true })
+    .boundingBox();
+  assert.ok(
+    actionBounds.y + actionBounds.height <= 421,
+    "Actions must stay reachable while editing with the keyboard open",
+  );
+  await safariPage.close();
   console.log(
     JSON.stringify({
       passed: passed.length,
@@ -361,6 +442,7 @@ try {
         "short dialog viewports",
         "no horizontal overflow",
         "chapter transition coverage and overlapping scroll locks",
+        "detail content below the floating toolbar and keyboard clearance",
       ],
       screenshots: out,
     }),
