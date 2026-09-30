@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import * as m from "motion/react-m";
 import { Menu, Monitor, Moon, Search, Sun, X } from "lucide-react";
 import type { View } from "../types";
 import { useTheme, type ThemeChoice } from "../lib/theme";
+import { useModal } from "../useModal";
 
 const views: { view: View; label: string }[] = [
   { view: "discover", label: "Discover" },
@@ -77,6 +79,118 @@ function SearchForm({
   );
 }
 
+function NavigationLinks({
+  view,
+  onNavigate,
+  mobile = false,
+}: {
+  view: View;
+  onNavigate: (view: View) => void;
+  mobile?: boolean;
+}) {
+  return views.map(({ view: v, label }, i) => (
+    <button
+      key={v}
+      className={`nav-link ${view === v ? "active" : ""}`}
+      aria-current={view === v ? "page" : undefined}
+      onClick={() => onNavigate(v)}
+    >
+      <small aria-hidden="true">0{i + 1}</small>
+      {label}
+      {view === v && !mobile && (
+        <m.span
+          className="nav-underline"
+          layoutId="nav-underline"
+          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+        />
+      )}
+    </button>
+  ));
+}
+
+function MobileNavigation({
+  view,
+  onNavigate,
+  onSearch,
+  onClose,
+}: {
+  view: View;
+  onNavigate: (view: View) => void;
+  onSearch: (term: string) => void;
+  onClose: () => void;
+}) {
+  // Lock the root below; clipping the body would cut off the page-sized backgrounds.
+  const ref = useModal<HTMLDivElement>({ lockScroll: false });
+  const readViewport = () => ({
+    top: window.scrollY + (window.visualViewport?.offsetTop ?? 0),
+    height: window.visualViewport?.height ?? window.innerHeight,
+  });
+  const [viewport, setViewport] = useState(readViewport);
+  useEffect(() => {
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    const update = () => setViewport(readViewport());
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      root.style.overflow = overflow;
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  return createPortal(
+    <div
+      className="mobile-nav"
+      style={
+        {
+          "--nav-top": `${viewport.top}px`,
+          "--nav-height": `${viewport.height}px`,
+        } as CSSProperties
+      }
+    >
+      <button
+        className="nav-scrim"
+        aria-label="Close navigation"
+        tabIndex={-1}
+        onClick={onClose}
+      />
+      <div className="mobile-nav-panel">
+        <div
+          ref={ref}
+          className="mobile-nav-content"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation"
+        >
+          <button
+            className="mobile-nav-close icon-button"
+            aria-label="Close navigation"
+            onClick={onClose}
+          >
+            <X />
+          </button>
+          <nav aria-label="Main">
+            <span className="nav-label label">Contents</span>
+            <NavigationLinks view={view} onNavigate={onNavigate} mobile />
+            <SearchForm className="nav-search" onSearch={onSearch} />
+            <div className="nav-theme">
+              <span className="label">Theme</span>
+              <ThemeSwitch />
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function Header({
   view,
   setView,
@@ -87,6 +201,14 @@ export function Header({
   onSearch: (term: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 800px)");
+    const resize = () => {
+      if (!mobile.matches) setOpen(false);
+    };
+    mobile.addEventListener("change", resize);
+    return () => mobile.removeEventListener("change", resize);
+  }, []);
   useEffect(() => {
     if (!open) return;
     const close = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -106,50 +228,18 @@ export function Header({
         </span>
       </button>
       {open && (
-        <>
-          <button
-            className="nav-scrim"
-            aria-label="Close navigation"
-            onClick={() => setOpen(false)}
-          />
-          <div className="nav-viewport-fill" aria-hidden="true" />
-        </>
+        <MobileNavigation
+          view={view}
+          onNavigate={go}
+          onSearch={(term) => {
+            setOpen(false);
+            onSearch(term);
+          }}
+          onClose={() => setOpen(false)}
+        />
       )}
-      <nav className={open ? "open" : ""} aria-label="Main">
-        <span className="nav-label label">Contents</span>
-        {views.map(({ view: v, label }, i) => (
-          <button
-            key={v}
-            className={`nav-link ${view === v ? "active" : ""}`}
-            aria-current={view === v ? "page" : undefined}
-            onClick={() => go(v)}
-          >
-            <small aria-hidden="true">0{i + 1}</small>
-            {label}
-            {view === v && (
-              <m.span
-                className="nav-underline"
-                layoutId="nav-underline"
-                transition={{ type: "spring", stiffness: 500, damping: 40 }}
-              />
-            )}
-          </button>
-        ))}
-        {open && (
-          <>
-            <SearchForm
-              className="nav-search"
-              onSearch={(term) => {
-                setOpen(false);
-                onSearch(term);
-              }}
-            />
-            <div className="nav-theme">
-              <span className="label">Theme</span>
-              <ThemeSwitch />
-            </div>
-          </>
-        )}
+      <nav aria-label="Main">
+        <NavigationLinks view={view} onNavigate={go} />
       </nav>
       <SearchForm className="header-search" onSearch={onSearch} />
       <ThemeSwitch />
@@ -177,12 +267,9 @@ export function Shell({
   onSearch: (term: string) => void;
 }) {
   return (
-    <>
-      <div className="accent-rail" aria-hidden="true" />
-      <div className="site">
-        <Header view={view} setView={setView} onSearch={onSearch} />
-        {children}
-      </div>
-    </>
+    <div className="site">
+      <Header view={view} setView={setView} onSearch={onSearch} />
+      {children}
+    </div>
   );
 }

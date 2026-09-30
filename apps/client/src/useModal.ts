@@ -4,7 +4,9 @@ const focusable =
   'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
 /** Keep keyboard focus in dialogs, prevent background scrolling, then restore focus. */
-export function useModal<T extends HTMLElement>() {
+export function useModal<T extends HTMLElement>({
+  lockScroll = true,
+}: { lockScroll?: boolean } = {}) {
   const ref = useRef<T>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -15,11 +17,11 @@ export function useModal<T extends HTMLElement>() {
         ? document.activeElement
         : null;
     const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (lockScroll) document.body.style.overflow = "hidden";
     (
       dialog.querySelector<HTMLElement>(".index-search input") ??
       dialog.querySelector<HTMLElement>(focusable)
-    )?.focus();
+    )?.focus({ preventScroll: true });
     const trap = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
       const elements = [
@@ -57,10 +59,10 @@ export function useModal<T extends HTMLElement>() {
     document.addEventListener("keydown", trap);
     return () => {
       document.removeEventListener("keydown", trap);
-      document.body.style.overflow = overflow;
+      if (lockScroll) document.body.style.overflow = overflow;
       // Don't scroll the page to bring a partly off-screen opener into view.
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, []);
+  }, [lockScroll]);
   return ref;
 }
