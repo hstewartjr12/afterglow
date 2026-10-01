@@ -25,7 +25,11 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (!path.startsWith("/api/")) {
     if (!["GET", "HEAD"].includes(request.method))
       return json({ error: "Method not allowed" }, 405);
-    return env.ASSETS.fetch(request);
+    const asset = await env.ASSETS.fetch(request);
+    const headers = new Headers(asset.headers);
+    if (headers.get("Content-Type")?.includes("text/html"))
+      headers.set("Cache-Control", "no-cache");
+    return new Response(asset.body, { status: asset.status, headers });
   }
   if (request.method !== "GET")
     return json({ error: "Method not allowed" }, 405);

@@ -5,11 +5,11 @@ import { useLayoutEffect, useRef } from "react";
  * The variables are written straight onto the element, so a scroll moves the
  * overlay before the next paint instead of after a React render.
  */
-export function usePageViewport<T extends HTMLElement>() {
+export function usePageViewport<T extends HTMLElement>(enabled = true) {
   const ref = useRef<T>(null);
   useLayoutEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element || !enabled) return;
     const update = () => {
       const viewport = window.visualViewport;
       element.style.setProperty(
@@ -32,6 +32,6 @@ export function usePageViewport<T extends HTMLElement>() {
       window.visualViewport?.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("scroll", update);
     };
-  }, []);
+  }, [enabled]);
   return ref;
 }

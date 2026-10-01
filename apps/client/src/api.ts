@@ -1,3 +1,4 @@
+import { requestJson } from "./lib/request";
 import type { VnDetail, VndbTag, VnSummary } from "@afterglow/shared";
 import { rankRecommendations } from "@afterglow/shared/recommend";
 import { storage } from "./demo/storage";
@@ -10,20 +11,9 @@ export type VnSearchFilters = {
   sort?: string;
   page?: number;
 };
-async function request<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
-    const body = await response
-      .json()
-      .catch(() => ({ error: "Request failed" }));
-    throw new Error(
-      typeof body?.error === "string"
-        ? body.error
-        : `Request failed (${response.status}). Please try again.`,
-    );
-  }
-  return response.json();
-}
+const request = <T>(url: string, signal?: AbortSignal) =>
+  requestJson<T>(url, { signal });
+
 export const api = {
   search: (filters: VnSearchFilters, signal?: AbortSignal) => {
     const params = new URLSearchParams({

@@ -126,27 +126,15 @@ async function loadQuery<T>(
     return { ...raw, results: raw.results.map(mapResult) };
   });
 }
-// Detail and match requests often ask for the same VN concurrently.
-// Share that work until the result is persisted in the existing disk cache.
-const inFlight = new Map<string, Promise<VnPage<unknown>>>();
-async function query(key: string, body: Raw): Promise<VnPage<VnSummary>>;
-async function query(
-  key: string,
-  body: Raw,
-  detail: true,
-): Promise<VnPage<VnDetail>>;
-async function query(key: string, body: Raw, detail = false) {
-  const existing = inFlight.get(key);
-  if (existing) return existing;
-  const pending = detail
+// Only completed catalogue data may be shared across Worker invocations.
+// An in-flight promise belongs to its originating request and can be abandoned
+// when that client disconnects, leaving other clients waiting indefinitely.
+function query(key: string, body: Raw): Promise<VnPage<VnSummary>>;
+function query(key: string, body: Raw, detail: true): Promise<VnPage<VnDetail>>;
+function query(key: string, body: Raw, detail = false) {
+  return detail
     ? loadQuery(key, body, detailFields, mapDetail)
     : loadQuery(key, body, summaryFields, mapSummary);
-  inFlight.set(key, pending);
-  try {
-    return await pending;
-  } finally {
-    inFlight.delete(key);
-  }
 }
 
 export type VnSearchOptions = {

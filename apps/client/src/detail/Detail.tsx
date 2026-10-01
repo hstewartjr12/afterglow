@@ -31,7 +31,7 @@ import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
 import { Synopsis } from "./Synopsis";
-import { easeOut, prefersReducedMotion, sheetTransition } from "../lib/motion";
+import { easeOut, useSimpleDetailMotion, sheetTransition } from "../lib/motion";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 type Tracker = Omit<LibraryInput, "vn">;
@@ -66,7 +66,9 @@ const TAG_PREVIEW = 18;
  * sits in different page coordinates than the card, so it lets go of the card.
  */
 function DetailCover({ vn }: { vn: VnDetail }) {
-  const shared = !useOverlayIsPage() && !prefersReducedMotion();
+  const page = useOverlayIsPage();
+  const simple = useSimpleDetailMotion();
+  const shared = !page && !simple;
   return (
     <m.div
       key={shared ? "shared" : "still"}
@@ -88,6 +90,7 @@ export function Detail({
   recommendation?: Recommendation;
 }) {
   const modalRef = useModal<HTMLElement>({ lockScroll: false });
+  const simpleMotion = useSimpleDetailMotion();
   const qc = useQueryClient();
   const toast = useToast();
   const detail = useQuery({
@@ -269,10 +272,13 @@ export function Detail({
       <m.article
         ref={modalRef}
         tabIndex={-1}
-        className="sheet detail-sheet tinted"
+        className={`sheet detail-sheet tinted${simpleMotion ? " simple-detail" : ""}`}
         style={tintStyle(tint)}
-        initial={{ y: 24 }}
-        animate={{ y: 0 }}
+        initial={simpleMotion ? { opacity: 0 } : { y: 24 }}
+        animate={simpleMotion ? { opacity: 1 } : { y: 0 }}
+        transition={
+          simpleMotion ? { duration: 0.16, ease: easeOut } : sheetTransition
+        }
         role="dialog"
         aria-modal="true"
         aria-label={d.title}
@@ -335,8 +341,8 @@ export function Detail({
             />
           )}
           <m.section
-            layout="position"
-            initial={{ opacity: 0, y: 10 }}
+            layout={simpleMotion ? false : "position"}
+            initial={simpleMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: easeOut, delay: 0.08 }}
             className="synopsis"
@@ -372,8 +378,8 @@ export function Detail({
             </AnimatePresence>
           </m.section>
           <m.section
-            layout="position"
-            initial={{ opacity: 0, y: 10 }}
+            layout={simpleMotion ? false : "position"}
+            initial={simpleMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: easeOut, delay: 0.14 }}
             className="fit"
@@ -393,8 +399,8 @@ export function Detail({
             />
           </m.section>
           <m.section
-            layout="position"
-            initial={{ opacity: 0, y: 10 }}
+            layout={simpleMotion ? false : "position"}
+            initial={simpleMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: easeOut, delay: 0.2 }}
             className="detail-tags"
@@ -537,7 +543,7 @@ export function Detail({
         <m.aside
           className="tracker"
           aria-labelledby="tracker-title"
-          initial={{ opacity: 0, x: 12 }}
+          initial={simpleMotion ? false : { opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.35, ease: easeOut, delay: 0.12 }}
         >

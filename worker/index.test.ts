@@ -12,7 +12,9 @@ const request = (path: string, method = "GET") =>
   worker.fetch(new Request("https://example.test" + path, { method }), env);
 describe("public catalogue server", () => {
   it("serves assets and never exposes a personal-data API", async () => {
-    expect(await (await request("/")).text()).toBe("app");
+    const html = await request("/");
+    expect(await html.text()).toBe("app");
+    expect(html.headers.get("Cache-Control")).toBe("no-cache");
     for (const path of [
       "/api/library",
       "/api/preferences",
@@ -50,6 +52,26 @@ describe("public catalogue server", () => {
     expect(upstream).toHaveBeenCalledTimes(1);
     const body = JSON.parse(upstream.mock.calls[0][1]?.body as string);
     expect(body.filters).toEqual(["search", "=", "worker-test"]);
+  });
+  it("keeps concurrent visitors independent if the first upstream request fails", async () => {
+    let rejectFirst!: (error: Error) => void;
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectFirst = reject;
+          }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ results: [{ id: "v17", title: "Ever17", tags: [] }] }),
+      );
+    const first = request("/api/vndb/search?q=independent-visitors");
+    const second = request("/api/vndb/search?q=independent-visitors");
+    await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(2));
+    expect((await second).status).toBe(200);
+    rejectFirst(new Error("Originating request canceled"));
+    expect((await first).status).toBe(502);
   });
   it("reports upstream rate limiting clearly", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
