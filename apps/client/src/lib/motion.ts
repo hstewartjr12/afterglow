@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const query = "(prefers-reduced-motion: reduce)";
 
@@ -26,13 +26,20 @@ export const easeOut = [0.2, 0.7, 0.2, 1] as const;
 /** Dialogs fade in while a cover flies from its card, so both share one timing. */
 export const sheetTransition = { duration: 0.35, ease: easeOut };
 
-/** WebKit pays heavily for shared-layout covers inside full-page dialogs. */
-export function useSimpleDetailMotion() {
-  const reduced = useReducedMotion();
-  return (
-    reduced ||
-    (/AppleWebKit/i.test(navigator.userAgent) &&
-      !/Chrome|Chromium|Edg|OPR|Android/i.test(navigator.userAgent)) ||
-    window.matchMedia?.("(max-width: 800px)").matches
-  );
+/**
+ * Props for a cover that flies between card and sheet. Motion moves it by
+ * rewriting its transform each frame; WebKit repaints such an element every
+ * frame unless it has its own compositor layer, so it gets one just for the flight.
+ */
+export function useFlightLayer<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  return {
+    ref,
+    onLayoutAnimationStart: () => {
+      ref.current?.style.setProperty("will-change", "transform");
+    },
+    onLayoutAnimationComplete: () => {
+      ref.current?.style.removeProperty("will-change");
+    },
+  };
 }

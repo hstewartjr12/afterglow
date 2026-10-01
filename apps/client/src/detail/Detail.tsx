@@ -31,7 +31,12 @@ import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
 import { Synopsis } from "./Synopsis";
-import { easeOut, useSimpleDetailMotion, sheetTransition } from "../lib/motion";
+import {
+  easeOut,
+  prefersReducedMotion,
+  sheetTransition,
+  useFlightLayer,
+} from "../lib/motion";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 type Tracker = Omit<LibraryInput, "vn">;
@@ -66,14 +71,14 @@ const TAG_PREVIEW = 18;
  * sits in different page coordinates than the card, so it lets go of the card.
  */
 function DetailCover({ vn }: { vn: VnDetail }) {
-  const page = useOverlayIsPage();
-  const simple = useSimpleDetailMotion();
-  const shared = !page && !simple;
+  const shared = !useOverlayIsPage() && !prefersReducedMotion();
+  const flight = useFlightLayer<HTMLDivElement>();
   return (
     <m.div
       key={shared ? "shared" : "still"}
       layoutId={shared ? `cover-${vn.id}` : undefined}
       transition={{ layout: sheetTransition }}
+      {...flight}
     >
       <Cover vn={vn} eager className="has-shadow" />
     </m.div>
@@ -90,7 +95,6 @@ export function Detail({
   recommendation?: Recommendation;
 }) {
   const modalRef = useModal<HTMLElement>({ lockScroll: false });
-  const simpleMotion = useSimpleDetailMotion();
   const qc = useQueryClient();
   const toast = useToast();
   const detail = useQuery({
@@ -272,13 +276,12 @@ export function Detail({
       <m.article
         ref={modalRef}
         tabIndex={-1}
-        className={`sheet detail-sheet tinted${simpleMotion ? " simple-detail" : ""}`}
+        className="sheet detail-sheet tinted"
         style={tintStyle(tint)}
-        initial={simpleMotion ? { opacity: 0 } : { y: 24 }}
-        animate={simpleMotion ? { opacity: 1 } : { y: 0 }}
-        transition={
-          simpleMotion ? { duration: 0.16, ease: easeOut } : sheetTransition
-        }
+        // A transform string rather than y, so the browser's compositor runs it.
+        initial={{ transform: "translateY(24px)" }}
+        animate={{ transform: "translateY(0px)" }}
+        transition={sheetTransition}
         role="dialog"
         aria-modal="true"
         aria-label={d.title}
@@ -341,8 +344,8 @@ export function Detail({
             />
           )}
           <m.section
-            layout={simpleMotion ? false : "position"}
-            initial={simpleMotion ? false : { opacity: 0, y: 10 }}
+            layout="position"
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: easeOut, delay: 0.08 }}
             className="synopsis"
@@ -378,8 +381,8 @@ export function Detail({
             </AnimatePresence>
           </m.section>
           <m.section
-            layout={simpleMotion ? false : "position"}
-            initial={simpleMotion ? false : { opacity: 0, y: 10 }}
+            layout="position"
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: easeOut, delay: 0.14 }}
             className="fit"
@@ -399,8 +402,8 @@ export function Detail({
             />
           </m.section>
           <m.section
-            layout={simpleMotion ? false : "position"}
-            initial={simpleMotion ? false : { opacity: 0, y: 10 }}
+            layout="position"
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: easeOut, delay: 0.2 }}
             className="detail-tags"
@@ -543,8 +546,8 @@ export function Detail({
         <m.aside
           className="tracker"
           aria-labelledby="tracker-title"
-          initial={simpleMotion ? false : { opacity: 0, x: 12 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, transform: "translateX(12px)" }}
+          animate={{ opacity: 1, transform: "translateX(0px)" }}
           transition={{ duration: 0.35, ease: easeOut, delay: 0.12 }}
         >
           <div className="tracker-head">

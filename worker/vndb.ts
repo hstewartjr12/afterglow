@@ -40,13 +40,14 @@ type VnPage<T> = { results: T[]; more?: boolean; count?: number };
 
 // Catalogue responses are shared; personal libraries and notes never enter this cache.
 const memoryCache = new Map<string, { expires: number; value: unknown }>();
+const edgeCache = () =>
+  (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
 async function cachedFetch<T>(
   key: string,
   ttl: number,
   request: () => Promise<T>,
 ): Promise<T> {
-  const edge = (globalThis as unknown as { caches?: { default?: Cache } })
-    .caches?.default;
+  const edge = edgeCache();
   const cacheRequest = new Request(
     `https://afterglow-cache.invalid/catalogue/${encodeURIComponent(key)}`,
   );
@@ -288,6 +289,18 @@ export function isCoverUrl(value: string) {
  * lets the browser read its colors for tinting the interface.
  */
 export async function fetchCover(url: string) {
+  // Covers never change at a URL, so every visitor after the first is served
+  // from the edge instead of waiting on VNDB.
+  const edge = edgeCache();
+  const cacheRequest = new Request(
+    `https://afterglow-cache.invalid/cover/${encodeURIComponent(url)}`,
+  );
+  const hit = await edge?.match(cacheRequest).catch(() => undefined);
+  if (hit)
+    return {
+      type: hit.headers.get("content-type") ?? "image/jpeg",
+      body: await hit.arrayBuffer(),
+    };
   let response: Response;
   try {
     response = await fetch(url, {
@@ -303,5 +316,17 @@ export async function fetchCover(url: string) {
   const type = response.headers.get("content-type") ?? "";
   if (!response.ok || !type.startsWith("image/"))
     throw new UpstreamError("The cover could not be loaded.", response.status);
-  return { type, body: await response.arrayBuffer() };
+  const body = await response.arrayBuffer();
+  await edge
+    ?.put(
+      cacheRequest,
+      new Response(body, {
+        headers: {
+          "Content-Type": type,
+          "Cache-Control": "public, max-age=604800",
+        },
+      }),
+    )
+    .catch(() => {});
+  return { type, body };
 }

@@ -15,6 +15,13 @@ export function coverSrc(url: string) {
   return url;
 }
 
+/** Downloads a cover ahead of time, so the page that shows it paints at once. */
+export function warmCover(url: string) {
+  const img = new Image();
+  img.decoding = "async";
+  img.src = coverSrc(url);
+}
+
 /** A cover's color, pre-adjusted to read well as text on each theme. */
 export type CoverTint = { light: string; dark: string };
 
@@ -85,7 +92,7 @@ function readable(
  * The cover's most characteristic color: pixels are grouped by hue and weighted
  * by how vivid they are, so a small bright accent beats a large gray area.
  */
-export function sampleTint(img: HTMLImageElement): CoverTint | null {
+export function sampleTint(img: CanvasImageSource): CoverTint | null {
   const size = 32;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -146,6 +153,20 @@ const idle = (run: () => void) =>
     : setTimeout(run, 50);
 
 /**
+ * A sampling-sized copy of a cover. Drawing the full image onto a canvas would
+ * decode it again on the main thread; an image bitmap is decoded and scaled
+ * off it where the browser supports that.
+ */
+const shrink = (img: HTMLImageElement): Promise<CanvasImageSource> =>
+  typeof createImageBitmap === "function"
+    ? createImageBitmap(img, {
+        resizeWidth: 32,
+        resizeHeight: 32,
+        resizeQuality: "low",
+      }).catch(() => img)
+    : Promise.resolve(img);
+
+/**
  * Samples a cover from an image the page has already loaded, so tints cost no
  * extra download. Sampling waits for idle time, keeping it out of animations.
  */
@@ -164,11 +185,14 @@ export function sampleCover(url: string, img: HTMLImageElement) {
           !img.naturalWidth
         )
           return;
-        const tint = sampleTint(img);
-        cache.set(url, tint);
-        persist();
-        waiting.get(url)?.forEach((notify) => notify(tint));
-        waiting.delete(url);
+        void shrink(img).then((small) => {
+          if (cache.has(url)) return;
+          const tint = sampleTint(small);
+          cache.set(url, tint);
+          persist();
+          waiting.get(url)?.forEach((notify) => notify(tint));
+          waiting.delete(url);
+        });
       }),
     () => {},
   );
