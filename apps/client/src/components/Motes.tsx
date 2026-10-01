@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useReducedMotion } from "../lib/motion";
+import { pageCovered } from "../useModal";
 
 type Mote = {
   x: number;
@@ -55,6 +56,12 @@ export function Motes({ count = 22 }: { count?: number }) {
     const draw = (now: number) => {
       const dt = Math.min(now - last, 50);
       last = now;
+      // Hold still under a dialog or transition: repainting the canvas there
+      // only competes with the animation on top.
+      if (pageCovered()) {
+        if (visible) frame = requestAnimationFrame(draw);
+        return;
+      }
       sinceStyle += dt;
       if (sinceStyle > 500) {
         sinceStyle = 0;

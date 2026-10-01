@@ -501,19 +501,3 @@
     background: color-mix(in srgb, var(--tint, var(--accent)) 40%, transparent);
   }
 }
-
-.simple-detail .glow {
-  background-image: radial-gradient(
-    ellipse at 20% 25%,
-    var(--tint) 0%,
-    transparent 70%
-  ) !important;
-  background-size: auto;
-  filter: none;
-  mask-image: none;
-  transform: none;
-  opacity: 0.12;
-}
-.simple-detail.tinted {
-  transition: none;
-}

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { domMax, LazyMotion } from "motion/react";
 import { PageOverlay, useOverlayIsPage } from "./PageOverlay";
@@ -8,9 +8,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 function Content() {
-  return <p>{useOverlayIsPage() ? "Scrolling document" : "Fixed sheet"}</p>;
+  return <p>{useOverlayIsPage() ? "Scrolling document" : "Opening sheet"}</p>;
 }
-it("opens as the mobile document immediately and restores the original scroll on close", () => {
+it("opens over the page, becomes the mobile document, and restores the scroll on close", async () => {
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: query === "(max-width: 800px)",
     media: query,
@@ -30,12 +30,21 @@ it("opens as the mobile document immediately and restores the original scroll on
       </PageOverlay>
     </LazyMotion>,
   );
+  // While it animates in, the page stays where it was beneath the sheet, so a
+  // cover can fly from its card.
+  const layer = document.querySelector(".modal-layer")!;
+  expect(screen.getByText("Opening sheet")).toBeInTheDocument();
+  expect(layer).not.toHaveClass("is-page");
+  expect(document.body).not.toHaveClass("mobile-dialog-page");
+  expect(scroll).not.toHaveBeenCalled();
+  await waitFor(() => expect(layer).toHaveClass("is-page"));
   expect(screen.getByText("Scrolling document")).toBeInTheDocument();
-  expect(document.querySelector(".modal-layer")).toHaveClass("is-page");
   expect(document.body).toHaveClass("mobile-dialog-page");
-  expect(document.documentElement.style.overflow).not.toBe("hidden");
-  expect(scroll).toHaveBeenCalledWith(0, 0);
+  expect(scroll).toHaveBeenLastCalledWith(0, 0);
+  await waitFor(() =>
+    expect(document.documentElement.style.overflow).not.toBe("hidden"),
+  );
   act(() => view.unmount());
   expect(document.body).not.toHaveClass("mobile-dialog-page");
-  expect(scroll).toHaveBeenLastCalledWith(0, 1300);
+  expect(scroll).toHaveBeenCalledWith(0, 1300);
 });
