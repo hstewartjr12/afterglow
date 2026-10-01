@@ -27,7 +27,13 @@ try {
 } catch {
   // A missing or unreadable cache just means colors are sampled again.
 }
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
+/** Covers are often sampled a grid at a time, so write the cache once they settle. */
 function persist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(save, 1000);
+}
+function save() {
   try {
     const recent = [...cache.entries()].slice(-300);
     localStorage.setItem(
@@ -133,29 +139,64 @@ export function sampleTint(img: HTMLImageElement): CoverTint | null {
   };
 }
 
-/** The tint for a cover, sampled once and remembered across visits. */
-export function useCoverTint(url: string | null | undefined) {
-  const [tint, setTint] = useState<CoverTint | null>(
-    url ? (cache.get(url) ?? null) : null,
+const waiting = new Map<string, Set<(tint: CoverTint | null) => void>>();
+const idle = (run: () => void) =>
+  "requestIdleCallback" in window
+    ? requestIdleCallback(run, { timeout: 1000 })
+    : setTimeout(run, 50);
+
+/**
+ * Samples a cover from an image the page has already loaded, so tints cost no
+ * extra download. Sampling waits for idle time, keeping it out of animations.
+ */
+export function sampleCover(url: string, img: HTMLImageElement) {
+  if (cache.has(url)) return;
+  // React can reuse this image for another story before the idle task runs.
+  const source = img.src;
+  if (source !== new URL(coverSrc(url), document.baseURI).href) return;
+  (img.decode ? img.decode() : Promise.resolve()).then(
+    () =>
+      idle(() => {
+        if (
+          cache.has(url) ||
+          img.src !== source ||
+          !img.complete ||
+          !img.naturalWidth
+        )
+          return;
+        const tint = sampleTint(img);
+        cache.set(url, tint);
+        persist();
+        waiting.get(url)?.forEach((notify) => notify(tint));
+        waiting.delete(url);
+      }),
+    () => {},
   );
+}
+
+/** The tint for a cover shown on screen, sampled once and remembered across visits. */
+export function useCoverTint(url: string | null | undefined) {
+  const [sampled, setSampled] = useState<{
+    url: typeof url;
+    tint: CoverTint | null;
+  }>(() => ({ url, tint: url ? (cache.get(url) ?? null) : null }));
   useEffect(() => {
-    if (!url) return setTint(null);
-    if (cache.has(url)) return setTint(cache.get(url)!);
-    let cancelled = false;
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => {
-      const sampled = sampleTint(img);
-      cache.set(url, sampled);
-      persist();
-      if (!cancelled) setTint(sampled);
-    };
-    img.src = coverSrc(url);
+    if (!url || cache.has(url)) return;
+    const notify = (tint: CoverTint | null) => setSampled({ url, tint });
+    const listeners = waiting.get(url) ?? new Set();
+    waiting.set(url, listeners.add(notify));
     return () => {
-      cancelled = true;
+      listeners.delete(notify);
+      if (!listeners.size && waiting.get(url) === listeners)
+        waiting.delete(url);
     };
   }, [url]);
-  return tint;
+  if (!url) return null;
+  return cache.has(url)
+    ? cache.get(url)!
+    : sampled.url === url
+      ? sampled.tint
+      : null;
 }
 
 /** CSS variables that switch a `.tinted` region to the cover's colors. */

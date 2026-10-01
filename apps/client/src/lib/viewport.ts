@@ -1,14 +1,27 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useRef } from "react";
 
-/** Place overlay content in the visible viewport while its paper covers the page. */
-export function usePageViewport() {
-  const read = () => ({
-    top: window.scrollY + (window.visualViewport?.offsetTop ?? 0),
-    height: window.visualViewport?.height ?? window.innerHeight,
-  });
-  const [viewport, setViewport] = useState(read);
-  useEffect(() => {
-    const update = () => setViewport(read());
+/**
+ * Place overlay content in the visible viewport while its paper covers the page.
+ * The variables are written straight onto the element, so a scroll moves the
+ * overlay before the next paint instead of after a React render.
+ */
+export function usePageViewport<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => {
+      const viewport = window.visualViewport;
+      element.style.setProperty(
+        "--overlay-top",
+        `${window.scrollY + (viewport?.offsetTop ?? 0)}px`,
+      );
+      element.style.setProperty(
+        "--overlay-height",
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+    };
+    update();
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update);
     window.visualViewport?.addEventListener("resize", update);
@@ -20,8 +33,5 @@ export function usePageViewport() {
       window.visualViewport?.removeEventListener("scroll", update);
     };
   }, []);
-  return {
-    "--overlay-top": `${viewport.top}px`,
-    "--overlay-height": `${viewport.height}px`,
-  } as CSSProperties;
+  return ref;
 }

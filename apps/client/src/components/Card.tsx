@@ -1,7 +1,7 @@
 import * as m from "motion/react-m";
 import type { VnSummary } from "@afterglow/shared";
 import { activateOnKey, lengths, vndbRating } from "../lib/format";
-import { easeOut, prefersReducedMotion } from "../lib/motion";
+import { easeOut, prefersReducedMotion, sheetTransition } from "../lib/motion";
 import { Cover } from "./Cover";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
@@ -62,6 +62,7 @@ export function Card({
       <m.div
         // The cover flies into the detail sheet; decorative, so off for reduced motion.
         layoutId={prefersReducedMotion() ? undefined : `cover-${vn.id}`}
+        transition={{ layout: sheetTransition }}
         className="card-cover"
       >
         <Cover vn={vn} />

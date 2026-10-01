@@ -124,10 +124,10 @@ function MobileNavigation({
 }) {
   const ref = useModal<HTMLDivElement>();
   const reducedMotion = useReducedMotion();
-  const viewportStyle = usePageViewport();
+  const viewportRef = usePageViewport<HTMLDivElement>();
 
   return createPortal(
-    <div className="mobile-nav" style={viewportStyle}>
+    <div ref={viewportRef} className="mobile-nav">
       <button
         className="nav-scrim"
         aria-label="Close navigation"

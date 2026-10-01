@@ -496,7 +496,8 @@ describe("redesign behaviors", () => {
     const scroll = vi.spyOn(window, "scrollTo");
     start();
     fireEvent.click(screen.getByRole("button", { name: "Library" }));
-    expect(scroll).toHaveBeenCalledWith(0, 0);
+    // The page changes once its code has loaded.
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith(0, 0));
     scroll.mockRestore();
   });
 

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { EyeOff } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
 import { coverIsSensitive } from "../lib/format";
-import { coverSrc } from "../lib/coverColor";
+import { coverSrc, sampleCover } from "../lib/coverColor";
+
+/** Covers already shown this session appear at once instead of fading in again. */
+const shown = new Set<string>();
 
 export function Cover({
   vn,
@@ -23,7 +26,13 @@ export function Cover({
   const hasImage = Boolean(vn.imageUrl && vn.imageUrl !== failedUrl);
   // Fade covers in once decoded instead of letting them pop in line by line.
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
-  const loaded = loadedUrl === vn.imageUrl;
+  const loaded =
+    loadedUrl === vn.imageUrl || (!!vn.imageUrl && shown.has(vn.imageUrl));
+  const markLoaded = (img: HTMLImageElement) => {
+    shown.add(vn.imageUrl!);
+    setLoadedUrl(vn.imageUrl);
+    sampleCover(vn.imageUrl!, img);
+  };
   return (
     <div className={`cover ${className}`}>
       {hasImage ? (
@@ -32,10 +41,9 @@ export function Cover({
           decoding="async"
           className={`${show ? "" : "is-blurred"} ${loaded ? "is-loaded" : ""}`}
           ref={(img) => {
-            if (img?.complete && img.naturalWidth && !loaded)
-              setLoadedUrl(vn.imageUrl);
+            if (img?.complete && img.naturalWidth && !loaded) markLoaded(img);
           }}
-          onLoad={() => setLoadedUrl(vn.imageUrl)}
+          onLoad={(event) => markLoaded(event.currentTarget)}
           src={coverSrc(vn.imageUrl!)}
           onError={() => setFailedUrl(vn.imageUrl)}
           alt={show ? `${vn.title} cover` : "Sensitive cover hidden"}
