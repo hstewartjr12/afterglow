@@ -341,7 +341,11 @@ try {
         const start = performance.now();
         const step = (now) => {
           const eye = document.querySelector(".eyecatch");
-          if (eye) tops.push(Math.round(eye.getBoundingClientRect().top));
+          if (eye) {
+            const box = eye.getBoundingClientRect();
+            // Covered when the eyecatch spans the whole viewport.
+            tops.push(box.top <= 1 && box.bottom >= innerHeight - 1);
+          }
           if (now - start < 1500) requestAnimationFrame(step);
           else resolve(tops);
         };
@@ -370,10 +374,11 @@ try {
     ),
     "",
   );
-  const tops = await eyeFrames;
-  assert.ok(tops.length > 10 && tops.every((top) => Math.abs(top) <= 1), {
-    message: `The eyecatch left the screen: ${tops.join(",")}`,
-  });
+  const covered = await eyeFrames;
+  assert.ok(
+    covered.length > 10 && covered.every(Boolean),
+    `The eyecatch left part of the screen uncovered: ${covered.join(",")}`,
+  );
   // A phone detail opens and closes as a sheet over the page it came from.
   await navigation(transitionPage, "Discover");
   const flightCard = transitionPage.locator(".discover .vn-card").first();

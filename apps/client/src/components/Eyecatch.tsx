@@ -40,10 +40,13 @@ export function Eyecatch({
     <m.div ref={viewportRef} className="eyecatch" aria-hidden="true">
       <m.div
         className="eyecatch-paper"
-        initial={{ x: "-112vw" }}
-        animate={{ x: 0 }}
+        initial={{ transform: "translateX(-112vw)" }}
+        animate={{ transform: "translateX(0vw)" }}
         transition={{ duration: 0.26, ease: easeOut }}
-        exit={{ x: "112vw", transition: { duration: 0.3, ease: easeOut } }}
+        exit={{
+          transform: "translateX(112vw)",
+          transition: { duration: 0.3, ease: easeOut },
+        }}
         onAnimationComplete={() => {
           if (!present || covered.current) return;
           covered.current = true;
@@ -52,16 +55,19 @@ export function Eyecatch({
       >
         <m.div
           className="eyecatch-viewport"
-          initial={{ x: "112vw" }}
-          animate={{ x: 0 }}
+          initial={{ transform: "translateX(112vw)" }}
+          animate={{ transform: "translateX(0vw)" }}
           transition={{ duration: 0.26, ease: easeOut }}
-          exit={{ x: "-112vw", transition: { duration: 0.3, ease: easeOut } }}
+          exit={{
+            transform: "translateX(-112vw)",
+            transition: { duration: 0.3, ease: easeOut },
+          }}
         >
           <m.div
             className="eyecatch-card"
-            initial={{ y: 12, opacity: 0 }}
+            initial={{ transform: "translateY(12px)", opacity: 0 }}
             animate={{
-              y: 0,
+              transform: "translateY(0px)",
               opacity: 1,
               transition: { delay: 0.1, duration: 0.25 },
             }}

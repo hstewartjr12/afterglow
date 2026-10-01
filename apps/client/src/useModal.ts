@@ -6,6 +6,9 @@ const focusable =
 let scrollLocks = 0;
 let originalOverflow = "";
 
+/** Whether a dialog, menu or page transition currently covers the page. */
+export const pageCovered = () => scrollLocks > 0;
+
 /** Lock the root rather than clipping the body backgrounds at Safari's toolbar. */
 export function usePageScrollLock(enabled = true) {
   useEffect(() => {

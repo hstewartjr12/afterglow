@@ -5,11 +5,14 @@
 
 /* Chapter-card eyecatch between pages */
 .eyecatch {
+  /* Reaches past the visible viewport: 100lvh stops short of the screen edge
+     behind iOS Safari's floating toolbar and the status bar. */
   position: absolute;
   z-index: 300;
-  inset: var(--overlay-top) 0 auto;
-  height: 100vh;
-  height: 100lvh;
+  inset: calc(var(--overlay-top) - 15vh) 0 auto;
+  inset: calc(var(--overlay-top) - 15lvh) 0 auto;
+  height: 130vh;
+  height: 130lvh;
   overflow: hidden;
 }
 .eyecatch-paper {
@@ -43,7 +46,8 @@
 .eyecatch-viewport {
   /* Counter the paper's movement so the chapter title stays centered. */
   position: absolute;
-  top: 0;
+  top: 15vh;
+  top: 15lvh;
   left: 12vw;
   width: 100vw;
   display: grid;

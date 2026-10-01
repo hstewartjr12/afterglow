@@ -1,7 +1,12 @@
 import * as m from "motion/react-m";
 import type { VnSummary } from "@afterglow/shared";
 import { activateOnKey, lengths, vndbRating } from "../lib/format";
-import { easeOut, prefersReducedMotion, sheetTransition } from "../lib/motion";
+import {
+  easeOut,
+  prefersReducedMotion,
+  sheetTransition,
+  useFlightLayer,
+} from "../lib/motion";
 import { Cover } from "./Cover";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
@@ -38,6 +43,7 @@ export function Card({
 }) {
   const activate = () => onOpen(vn);
   const tint = useCoverTint(vn.imageUrl);
+  const flight = useFlightLayer<HTMLDivElement>();
   const year = vn.released?.slice(0, 4);
   const length = lengths[vn.length || 0];
   return (
@@ -51,8 +57,9 @@ export function Card({
       onKeyDown={activateOnKey(activate)}
       onPointerMove={tilt}
       onPointerLeave={untilt}
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
+      // Transform strings run on the compositor; x/y would repaint every frame.
+      initial={{ opacity: 0, transform: "translateY(18px)" }}
+      animate={{ opacity: 1, transform: "translateY(0px)" }}
       transition={{
         duration: 0.45,
         ease: easeOut,
@@ -63,6 +70,7 @@ export function Card({
         // The cover flies into the detail sheet; decorative, so off for reduced motion.
         layoutId={prefersReducedMotion() ? undefined : `cover-${vn.id}`}
         transition={{ layout: sheetTransition }}
+        {...flight}
         className="card-cover"
       >
         <Cover vn={vn} />

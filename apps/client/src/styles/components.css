@@ -617,17 +617,27 @@ nav .nav-link.active {
 
 /* Modals */
 .modal-layer {
+  /* In the document rather than fixed: iOS Safari clips fixed layers above its
+     floating toolbar, but paints the document beneath it. Only the visible
+     viewport (plus a margin under Safari's bars) is covered, so fading the
+     layer composites a screenful rather than the whole page. */
   position: absolute;
   z-index: 100;
-  inset: 0;
-  min-height: calc(var(--overlay-top) + 100vh);
-  min-height: calc(var(--overlay-top) + 100lvh);
+  left: 0;
+  right: 0;
+  top: var(--overlay-top);
+  height: var(--overlay-height);
+}
+.modal-layer::before {
+  content: "";
+  position: absolute;
+  inset: -50vh 0;
+  inset: -50lvh 0;
   background: var(--scrim);
 }
 .modal-backdrop {
   position: absolute;
-  inset: var(--overlay-top) 0 auto;
-  height: var(--overlay-height);
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -650,26 +660,17 @@ nav .nav-link.active {
   right: 12px;
 }
 @media (max-width: 800px) {
-  /* Phone dialogs stay in normal document flow throughout their lifetime. */
-  body.mobile-dialog-page .site {
-    display: none;
-  }
-  .modal-layer.is-page {
-    position: relative;
-    inset: auto;
-    min-height: 100vh;
-    min-height: 100lvh;
+  /* Opening and closing, a phone dialog is a full-screen sheet over the page. */
+  .modal-layer::before {
     background: linear-gradient(to right, var(--accent) 6px, var(--bg) 6px);
   }
-  .modal-layer.is-page .modal-backdrop {
-    position: static;
-    height: auto;
-    margin-left: 6px;
+  .modal-backdrop {
+    inset: calc(-1 * var(--sheet-scroll, 0px)) 0 auto 6px;
     display: block;
     padding: 0;
     overflow: visible;
   }
-  .modal-layer.is-page .sheet {
+  .modal-layer .sheet {
     width: 100% !important;
     height: auto !important;
     max-height: none !important;
@@ -678,8 +679,6 @@ nav .nav-link.active {
     border: 0;
     border-radius: 0;
     box-shadow: none;
-  }
-  .modal-layer .sheet {
     overflow: visible;
     padding-bottom: calc(
       var(--sheet-bottom-padding, 32px) + env(safe-area-inset-bottom, 0px)
@@ -688,6 +687,23 @@ nav .nav-link.active {
   .modal-layer .tag-results {
     flex: none;
     overflow: visible;
+  }
+  /* Once open it becomes the document, scrolling with Safari's toolbars. */
+  body.mobile-dialog-page .site {
+    display: none;
+  }
+  .modal-layer.is-page {
+    position: relative;
+    top: auto;
+    height: auto;
+  }
+  .modal-layer.is-page::before {
+    inset: 0;
+  }
+  .modal-layer.is-page .modal-backdrop {
+    position: relative;
+    inset: auto;
+    margin-left: 6px;
   }
 }
 

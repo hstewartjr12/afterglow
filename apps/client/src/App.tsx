@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, domMax, LazyMotion } from "motion/react";
 import type { VnSummary } from "@afterglow/shared";
 import { api } from "./api";
@@ -17,6 +17,7 @@ import { Loading } from "./components/status";
 import { ToastProvider } from "./components/Toasts";
 import { Eyecatch } from "./components/Eyecatch";
 import { prefersReducedMotion } from "./lib/motion";
+import { warmCover } from "./lib/coverColor";
 import { preloadable } from "./lib/lazy";
 
 // Home is the landing view; everything else loads on first use, or while idle.
@@ -64,14 +65,26 @@ export default function App() {
     [recs.data, selected],
   );
   // Fetch the other screens once the first one has settled, so page changes
-  // and the detail sheet never flash a loading state.
+  // and the detail sheet never flash a loading state. The library's covers are
+  // known by then too, so they are ready before the Library page opens.
+  const queryClient = useQueryClient();
   useEffect(() => {
     const timer = setTimeout(() => {
       for (const screen of [Detail, Discover, LibraryView, Taste])
         screen.preload().catch(() => {});
+      queryClient
+        .ensureQueryData({ queryKey: ["library"], queryFn: api.library })
+        .then((library) =>
+          library
+            .slice(0, 24)
+            .forEach(
+              (entry) => entry.vn.imageUrl && warmCover(entry.vn.imageUrl),
+            ),
+        )
+        .catch(() => {});
     }, 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [queryClient]);
   // The taste page reports unsaved edits so leaving it can be confirmed first.
   const tasteDirty = useRef(false);
   const setTasteDirty = useCallback((dirty: boolean) => {
