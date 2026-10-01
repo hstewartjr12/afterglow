@@ -10,6 +10,15 @@
   inset: var(--overlay-top) 0 auto;
   height: 100vh;
   height: 100lvh;
+  overflow: hidden;
+}
+.eyecatch-paper {
+  /* Keep the angled edge static, and slide its cached layer across the screen. */
+  position: absolute;
+  inset: 0 auto 0 -12vw;
+  width: 124vw;
+  clip-path: polygon(12vw 0, 100% 0, calc(100% - 12vw) 100%, 0 100%);
+  will-change: transform;
   background-color: var(--surface);
   background-image:
     radial-gradient(var(--grain) 0.6px, transparent 0.9px),
@@ -23,15 +32,20 @@
     5px 5px,
     100% 100%;
 }
-.eyecatch::before {
+.eyecatch-paper::before {
   /* A red page edge, like the fore-edge of a book, leading the sweep. */
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
+  inset: 0 auto 0 12vw;
   width: 6px;
   background: var(--accent);
 }
 .eyecatch-viewport {
+  /* Counter the paper's movement so the chapter title stays centered. */
+  position: absolute;
+  top: 0;
+  left: 12vw;
+  width: 100vw;
   display: grid;
   place-items: center;
   height: var(--overlay-height);

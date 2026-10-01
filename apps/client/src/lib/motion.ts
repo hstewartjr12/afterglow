@@ -22,3 +22,6 @@ export function useReducedMotion() {
 }
 
 export const easeOut = [0.2, 0.7, 0.2, 1] as const;
+
+/** Dialogs fade in while a cover flies from its card, so both share one timing. */
+export const sheetTransition = { duration: 0.35, ease: easeOut };

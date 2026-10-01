@@ -13,7 +13,7 @@ import type {
 import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { useModal } from "../useModal";
-import { PageOverlay } from "../components/PageOverlay";
+import { PageOverlay, useOverlayIsPage } from "../components/PageOverlay";
 import { invalidateMatches } from "../queries";
 import {
   altTitle,
@@ -31,7 +31,7 @@ import { ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { TagChoicePopover } from "./TagChoicePopover";
 import { Synopsis } from "./Synopsis";
-import { easeOut, prefersReducedMotion } from "../lib/motion";
+import { easeOut, prefersReducedMotion, sheetTransition } from "../lib/motion";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 type Tracker = Omit<LibraryInput, "vn">;
@@ -60,6 +60,23 @@ const spoilerOptions = [
   { level: 2, label: "All" },
 ] as const;
 const TAG_PREVIEW = 18;
+
+/**
+ * The cover flies in from its card. A phone dialog that has become the page
+ * sits in different page coordinates than the card, so it lets go of the card.
+ */
+function DetailCover({ vn }: { vn: VnDetail }) {
+  const shared = !useOverlayIsPage() && !prefersReducedMotion();
+  return (
+    <m.div
+      key={shared ? "shared" : "still"}
+      layoutId={shared ? `cover-${vn.id}` : undefined}
+      transition={{ layout: sheetTransition }}
+    >
+      <Cover vn={vn} eager className="has-shadow" />
+    </m.div>
+  );
+}
 
 export function Detail({
   vn,
@@ -277,11 +294,7 @@ export function Detail({
           <X />
         </button>
         <aside className="detail-cover">
-          <m.div
-            layoutId={prefersReducedMotion() ? undefined : `cover-${d.id}`}
-          >
-            <Cover vn={d} eager className="has-shadow" />
-          </m.div>
+          <DetailCover vn={d} />
         </aside>
         <header className="detail-head">
           <h1>{d.title}</h1>
