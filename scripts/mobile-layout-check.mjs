@@ -197,9 +197,9 @@ try {
         .waitFor();
       await canvas(page, `${prefix}-library-empty`);
       await navigation(page, "Discover");
-      await page.locator(".vn-card").first().waitFor();
+      await page.locator(".discover .vn-card").first().waitFor();
       await canvas(page, `${prefix}-discover`);
-      const card = page.locator(".vn-card").first();
+      const card = page.locator(".discover .vn-card").first();
       const cardTop = await card.evaluate(
         (el) => el.getBoundingClientRect().top + scrollY,
       );
@@ -212,6 +212,7 @@ try {
       await page.mouse.click(cardBox.x + cardBox.width / 2, cardBox.y + 20);
       const detail = page.getByRole("dialog", { name: story.title });
       await detail.waitFor();
+      if (width <= 800) await page.locator(".modal-layer.is-page").waitFor();
       await canvas(page, `${prefix}-details`, ".modal-layer");
       if (width <= 800) {
         const bounds = await detail.boundingBox();
@@ -257,7 +258,11 @@ try {
         await page.evaluate(() => document.documentElement.style.overflow),
         "",
       );
-      assert.equal(await page.evaluate(() => scrollY), scroll);
+      assert.equal(
+        await page.evaluate(() => scrollY),
+        scroll,
+        `${prefix}: scroll position restored after details`,
+      );
       await navigation(page, "Library");
       await page.locator(".ledger-row").first().waitFor();
       await canvas(page, `${prefix}-library-populated`);
@@ -269,6 +274,7 @@ try {
       await page.getByRole("button", { name: "Browse all tags →" }).click();
       const index = page.getByRole("dialog", { name: "VNDB tag index" });
       await index.locator(".tag-row").first().waitFor();
+      if (width <= 800) await page.locator(".modal-layer.is-page").waitFor();
       await canvas(page, `${prefix}-tag-index`, ".modal-layer");
       await index
         .getByRole("textbox", { name: "Search VNDB tags" })
@@ -314,6 +320,9 @@ try {
   }
   const transitionPage = await browser.newPage({
     viewport: { width: 390, height: 844 },
+    // A phone's overlay scrollbars, so locking scroll does not reflow the page.
+    isMobile: true,
+    hasTouch: true,
     reducedMotion: "no-preference",
   });
   await fixture(transitionPage);
@@ -323,6 +332,22 @@ try {
     .click();
   await transitionPage.locator(".onboarding").waitFor({ state: "hidden" });
   await transitionPage.evaluate(() => window.scrollTo(0, 200));
+  // Follow the eyecatch every frame: it must stay on screen even as the page
+  // underneath scrolls back to the top.
+  const eyeFrames = transitionPage.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const tops = [];
+        const start = performance.now();
+        const step = (now) => {
+          const eye = document.querySelector(".eyecatch");
+          if (eye) tops.push(Math.round(eye.getBoundingClientRect().top));
+          if (now - start < 1500) requestAnimationFrame(step);
+          else resolve(tops);
+        };
+        requestAnimationFrame(step);
+      }),
+  );
   await navigation(transitionPage, "Library");
   const eye = transitionPage.locator(".eyecatch");
   await eye.waitFor();
@@ -344,6 +369,49 @@ try {
       () => document.documentElement.style.overflow,
     ),
     "",
+  );
+  const tops = await eyeFrames;
+  assert.ok(tops.length > 10 && tops.every((top) => Math.abs(top) <= 1), {
+    message: `The eyecatch left the screen: ${tops.join(",")}`,
+  });
+  // A phone detail opens and closes as a sheet over the page it came from.
+  await navigation(transitionPage, "Discover");
+  const flightCard = transitionPage.locator(".discover .vn-card").first();
+  await flightCard.waitFor();
+  await transitionPage.locator(".eyecatch").waitFor({ state: "hidden" });
+  await transitionPage.evaluate(() => window.scrollTo(0, 120));
+  // The finished transition must not scroll the new page back to the top.
+  await transitionPage.waitForTimeout(500);
+  const before = await transitionPage.evaluate(() => scrollY);
+  assert.equal(before, 120, "A finished page change leaves scrolling alone");
+  const flightBox = await flightCard.boundingBox();
+  // A raw click, so Playwright does not scroll the card into view first.
+  await transitionPage.mouse.click(
+    flightBox.x + flightBox.width / 2,
+    Math.max(flightBox.y, 80) + 20,
+  );
+  await transitionPage.locator(".modal-layer").waitFor();
+  assert.deepEqual(
+    await transitionPage.evaluate(() => ({
+      site: getComputedStyle(document.querySelector(".site")).display,
+      scroll: scrollY,
+    })),
+    { site: "block", scroll: before },
+    "The page stays in place under a detail while it opens",
+  );
+  await transitionPage.locator(".modal-layer.is-page").waitFor();
+  await transitionPage.getByRole("button", { name: "Close details" }).click();
+  assert.deepEqual(
+    await transitionPage.evaluate(() => ({
+      layer: Boolean(document.querySelector(".modal-layer:not(.is-page)")),
+      site: getComputedStyle(document.querySelector(".site")).display,
+      scroll: scrollY,
+    })),
+    { layer: true, site: "block", scroll: before },
+    "The detail fades away over the restored page",
+  );
+  await transitionPage.waitForFunction(
+    () => !document.querySelector(".modal-layer"),
   );
   await transitionPage.close();
   const safariPage = await browser.newPage({
@@ -378,6 +446,7 @@ try {
     .click();
   const safariDetail = safariPage.getByRole("dialog", { name: story.title });
   await safariDetail.waitFor();
+  await safariPage.locator(".modal-layer.is-page").waitFor();
   await canvas(safariPage, "safari-toolbar-detail", ".modal-layer");
   const toolbarGeometry = await safariDetail.evaluate((el) => ({
     bounds: el.getBoundingClientRect().toJSON(),
@@ -445,6 +514,8 @@ try {
         "short dialog viewports",
         "no horizontal overflow",
         "chapter transition coverage and overlapping scroll locks",
+        "eyecatch stays on screen while the page scrolls under it",
+        "phone details open and close over the page they came from",
         "document scrolling behind the floating toolbar and keyboard clearance",
       ],
       screenshots: out,

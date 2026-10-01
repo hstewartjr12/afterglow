@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import { useIsPresent } from "motion/react";
 import * as m from "motion/react-m";
 import { createPortal } from "react-dom";
 import type { View } from "../types";
@@ -25,45 +27,54 @@ export function Eyecatch({
   onCovered: () => void;
 }) {
   const title = titles[view];
-  const viewportStyle = usePageViewport();
+  const viewportRef = usePageViewport<HTMLDivElement>();
+  const covered = useRef(false);
+  const present = useIsPresent();
+  const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    if (!present) clearTimeout(hold.current);
+    return () => clearTimeout(hold.current);
+  }, [present]);
   usePageScrollLock();
   return createPortal(
-    <m.div
-      className="eyecatch"
-      style={viewportStyle}
-      aria-hidden="true"
-      initial={{ clipPath: "polygon(0 0, 0 0, -12% 100%, -12% 100%)" }}
-      animate={{
-        clipPath: "polygon(0 0, 112% 0, 100% 100%, -12% 100%)",
-        transition: { duration: 0.26, ease: easeOut },
-      }}
-      exit={{
-        clipPath: "polygon(112% 0, 112% 0, 100% 100%, 100% 100%)",
-        transition: { duration: 0.3, ease: easeOut },
-      }}
-      onAnimationComplete={(definition) => {
-        // Hold the title card for a beat before revealing the new page.
-        if (definition !== "exit") setTimeout(onCovered, 140);
-      }}
-    >
-      <div className="eyecatch-viewport">
+    <m.div ref={viewportRef} className="eyecatch" aria-hidden="true">
+      <m.div
+        className="eyecatch-paper"
+        initial={{ x: "-112vw" }}
+        animate={{ x: 0 }}
+        transition={{ duration: 0.26, ease: easeOut }}
+        exit={{ x: "112vw", transition: { duration: 0.3, ease: easeOut } }}
+        onAnimationComplete={() => {
+          if (!present || covered.current) return;
+          covered.current = true;
+          hold.current = setTimeout(onCovered, 140);
+        }}
+      >
         <m.div
-          className="eyecatch-card"
-          initial={{ y: 12, opacity: 0 }}
-          animate={{
-            y: 0,
-            opacity: 1,
-            transition: { delay: 0.1, duration: 0.25 },
-          }}
+          className="eyecatch-viewport"
+          initial={{ x: "112vw" }}
+          animate={{ x: 0 }}
+          transition={{ duration: 0.26, ease: easeOut }}
+          exit={{ x: "-112vw", transition: { duration: 0.3, ease: easeOut } }}
         >
-          <span className="eyecatch-chapter">{title.chapter}</span>
-          <span className="eyecatch-rule" />
-          <span className="eyecatch-en">{title.en}</span>
-          <span className="eyecatch-jp jp" lang="ja">
-            {title.jp}
-          </span>
+          <m.div
+            className="eyecatch-card"
+            initial={{ y: 12, opacity: 0 }}
+            animate={{
+              y: 0,
+              opacity: 1,
+              transition: { delay: 0.1, duration: 0.25 },
+            }}
+          >
+            <span className="eyecatch-chapter">{title.chapter}</span>
+            <span className="eyecatch-rule" />
+            <span className="eyecatch-en">{title.en}</span>
+            <span className="eyecatch-jp jp" lang="ja">
+              {title.jp}
+            </span>
+          </m.div>
         </m.div>
-      </div>
+      </m.div>
     </m.div>,
     document.body,
   );

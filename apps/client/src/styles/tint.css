@@ -35,6 +35,12 @@
 .tint-scope {
   display: contents;
 }
+/* Cards and rows only show their tint on hover; skipping the fade spares a
+   grid of covers dozens of main-thread transitions as their colors arrive. */
+.vn-card.tinted,
+.tint-scope {
+  transition: none;
+}
 
 /* Featured story and detail sheet */
 .tinted .label-accent,

@@ -1,5 +1,4 @@
 import {
-  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -18,20 +17,27 @@ import { Loading } from "./components/status";
 import { ToastProvider } from "./components/Toasts";
 import { Eyecatch } from "./components/Eyecatch";
 import { prefersReducedMotion } from "./lib/motion";
+import { preloadable } from "./lib/lazy";
 
 // Home is the landing view; everything else loads on first use, or while idle.
-const loadDiscover = () => import("./views/Discover");
-const loadLibrary = () => import("./views/LibraryView");
-const loadTaste = () => import("./views/Taste");
-const loadDetail = () => import("./detail/Detail");
-const Discover = lazy(() =>
-  loadDiscover().then((m) => ({ default: m.Discover })),
+const Discover = preloadable(() =>
+  import("./views/Discover").then((m) => m.Discover),
 );
-const LibraryView = lazy(() =>
-  loadLibrary().then((m) => ({ default: m.LibraryView })),
+const LibraryView = preloadable(() =>
+  import("./views/LibraryView").then((m) => m.LibraryView),
 );
-const Taste = lazy(() => loadTaste().then((m) => ({ default: m.Taste })));
-const Detail = lazy(() => loadDetail().then((m) => ({ default: m.Detail })));
+const Taste = preloadable(() => import("./views/Taste").then((m) => m.Taste));
+const Detail = preloadable(() =>
+  import("./detail/Detail").then((m) => m.Detail),
+);
+const preloadView = (view: View) =>
+  ({ home: undefined, discover: Discover, library: LibraryView, taste: Taste })[
+    view
+  ]
+    ?.preload()
+    .catch(() => {
+      // Rendering retries the import and reports a failure itself.
+    });
 
 type SearchRequest = {
   term: string;
@@ -40,7 +46,10 @@ type SearchRequest = {
 export default function App() {
   const [view, setView] = useState<View>("home");
   // The view being transitioned to while the eyecatch covers the screen.
-  const [pending, setPending] = useState<View | null>(null);
+  const [pending, setPending] = useState<{ view: View; id: number } | null>(
+    null,
+  );
+  const navigation = useRef(0);
   const [selected, setSelected] = useState<VnSummary | null>(null);
   const [searchRequest, setSearchRequest] = useState<SearchRequest>({
     term: "",
@@ -58,8 +67,8 @@ export default function App() {
   // and the detail sheet never flash a loading state.
   useEffect(() => {
     const timer = setTimeout(() => {
-      for (const load of [loadDetail, loadDiscover, loadLibrary, loadTaste])
-        void load();
+      for (const screen of [Detail, Discover, LibraryView, Taste])
+        screen.preload().catch(() => {});
     }, 1200);
     return () => clearTimeout(timer);
   }, []);
@@ -75,24 +84,47 @@ export default function App() {
       !window.confirm("Leave without saving your taste profile changes?")
     )
       return false;
-    if (next === view) return true;
-    if (prefersReducedMotion()) {
-      setView(next);
-      window.scrollTo(0, 0);
-    } else setPending(next);
+    const id = ++navigation.current;
+    if (next === view) {
+      setPending(null);
+      return true;
+    }
+    const ready = preloadView(next);
+    if (prefersReducedMotion())
+      void Promise.resolve(ready).then(() => {
+        if (id !== navigation.current) return;
+        setView(next);
+        window.scrollTo(0, 0);
+      });
+    else setPending({ view: next, id });
     return true;
   };
   const reveal = () => {
-    if (!pending) return;
-    setView(pending);
-    setPending(null);
-    window.scrollTo(0, 0);
+    const transition = pending;
+    if (!transition) return;
+    const { view: next, id } = transition;
+    // Mount the new page while the eyecatch still covers the screen, and give
+    // it a frame to paint before the eyecatch sweeps away.
+    void Promise.resolve(preloadView(next)).then(() => {
+      if (id !== navigation.current) return;
+      setView(next);
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          setPending((current) => (current?.id === id ? null : current)),
+        ),
+      );
+    });
   };
+  const open = (vn: VnSummary) =>
+    void Detail.preload()
+      .catch(() => {})
+      .then(() => setSelected(vn));
   return (
     <LazyMotion features={domMax} strict>
       <ToastProvider>
         <Shell
-          view={pending ?? view}
+          view={pending?.view ?? view}
           setView={navigate}
           onSearch={(term) => {
             if (!navigate("discover")) return;
@@ -102,7 +134,7 @@ export default function App() {
             }));
           }}
         >
-          {view === "home" && <Home go={navigate} open={setSelected} />}
+          {view === "home" && <Home go={navigate} open={open} />}
           <Suspense
             fallback={
               <main className="page">
@@ -114,19 +146,22 @@ export default function App() {
               <Discover
                 key={searchRequest.id}
                 initialTerm={searchRequest.term}
-                open={setSelected}
+                open={open}
               />
             )}
             {view === "library" && (
-              <LibraryView
-                open={setSelected}
-                discover={() => navigate("discover")}
-              />
+              <LibraryView open={open} discover={() => navigate("discover")} />
             )}
             {view === "taste" && <Taste onDirtyChange={setTasteDirty} />}
           </Suspense>
           <AnimatePresence>
-            {pending && <Eyecatch view={pending} onCovered={reveal} />}
+            {pending && (
+              <Eyecatch
+                key={pending.id}
+                view={pending.view}
+                onCovered={reveal}
+              />
+            )}
           </AnimatePresence>
           <AnimatePresence>
             {selected && (
