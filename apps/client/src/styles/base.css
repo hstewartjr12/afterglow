@@ -13,6 +13,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100lvh;
   background-color: var(--bg);
   background-image:
     linear-gradient(to right, var(--accent) 6px, transparent 6px),
@@ -101,6 +102,7 @@ p {
   overflow-x: clip;
   margin-left: 6px;
   min-height: 100vh;
+  min-height: 100lvh;
 }
 main {
   padding: 32px var(--gutter) 80px;

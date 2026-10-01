@@ -25,3 +25,14 @@ export const easeOut = [0.2, 0.7, 0.2, 1] as const;
 
 /** Dialogs fade in while a cover flies from its card, so both share one timing. */
 export const sheetTransition = { duration: 0.35, ease: easeOut };
+
+/** WebKit pays heavily for shared-layout covers inside full-page dialogs. */
+export function useSimpleDetailMotion() {
+  const reduced = useReducedMotion();
+  return (
+    reduced ||
+    (/AppleWebKit/i.test(navigator.userAgent) &&
+      !/Chrome|Chromium|Edg|OPR|Android/i.test(navigator.userAgent)) ||
+    window.matchMedia?.("(max-width: 800px)").matches
+  );
+}
