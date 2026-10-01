@@ -1,3 +1,4 @@
+import { requestJson } from "./lib/request";
 import type {
   LibraryEntry,
   LibraryInput,
@@ -16,21 +17,12 @@ export type VnSearchFilters = {
   sort?: string;
   page?: number;
 };
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const r = await fetch(url, {
+const request = <T>(url: string, options?: RequestInit) =>
+  requestJson<T>(url, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
-  if (!r.ok) {
-    const body = await r.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(
-      typeof body?.error === "string"
-        ? body.error
-        : `Request failed (${r.status}). Please try again.`,
-    );
-  }
-  return r.status === 204 ? (undefined as T) : r.json();
-}
+
 export const api = {
   search: (filters: VnSearchFilters, signal?: AbortSignal) => {
     const params = new URLSearchParams({
