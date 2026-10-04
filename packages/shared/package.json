@@ -16,6 +16,10 @@
     "./recommend": {
       "types": "./src/recommend.ts",
       "default": "./src/recommend.ts"
+    },
+    "./candidates": {
+      "types": "./src/candidates.ts",
+      "default": "./src/candidates.ts"
     }
   },
   "scripts": {

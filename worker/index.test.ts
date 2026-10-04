@@ -29,6 +29,9 @@ describe("public catalogue server", () => {
     for (const path of [
       "/api/vndb/search?page=0",
       "/api/vndb/search?platform=bad",
+      "/api/vndb/search?language=bad",
+      "/api/vndb/search?tag=nope",
+      "/api/vndb/candidates?page=4",
       "/api/vndb/candidates?tags=g1,g2,g3,g4,g5,g6,g7,g8,g9",
       "/api/vndb/candidates?tags=bad",
       "/api/vndb/vn/nope",
@@ -108,6 +111,65 @@ describe("public catalogue server", () => {
     expect(
       (await response.json()).map((vn: { title: string }) => vn.title),
     ).toEqual(["Themed", "Shared popular", "Popular"]);
+  });
+  it("requires language and platform on the same release and keeps theme filters spoiler-free", async () => {
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(Response.json({ results: [], count: 0, more: false }));
+    expect(
+      (await request("/api/vndb/search?language=en&platform=swi&tag=g981273"))
+        .status,
+    ).toBe(200);
+    const body = JSON.parse(upstream.mock.calls[0][1]?.body as string);
+    expect(body.filters).toEqual([
+      "and",
+      ["release", "=", ["and", ["lang", "=", "en"], ["platform", "=", "swi"]]],
+      ["tag", "=", ["g981273", 0, 0.5]],
+    ]);
+  });
+  it("returns cumulative bounded candidate pages and retains good pages if an expansion fails", async () => {
+    vi.resetModules();
+    const isolated = (await import("./index")).default;
+    const calls: { page: number; results: number }[] = [];
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (_url, options) => {
+        const body = JSON.parse(options?.body as string);
+        calls.push(body);
+        if (body.results === 60 && body.page === 2)
+          throw new Error("Optional page unavailable");
+        return Response.json({
+          results: [
+            {
+              id: `v${body.results}${body.page}`,
+              title: `Page ${body.page}`,
+              tags: [],
+            },
+          ],
+          more: body.page < 3,
+        });
+      });
+    const response = await isolated.fetch(
+      new Request(
+        "https://example.test/api/vndb/candidates?tags=g981274&page=3",
+      ),
+      env,
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).map((vn: { id: string }) => vn.id)).toEqual([
+      "v601",
+      "v401",
+      "v402",
+      "v403",
+    ]);
+    expect(calls.map(({ page, results }) => [results, page])).toEqual([
+      [60, 1],
+      [40, 1],
+      [60, 2],
+      [40, 2],
+      [40, 3],
+    ]);
+    expect(upstream).toHaveBeenCalledTimes(5);
   });
   it("reports upstream rate limiting clearly", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(

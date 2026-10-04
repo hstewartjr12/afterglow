@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, useIsPresent } from "motion/react";
 import * as m from "motion/react-m";
-import { ExternalLink, Heart, X } from "lucide-react";
+import { ExternalLink, Heart, Link, X } from "lucide-react";
 import type {
   LibraryEntry,
   LibraryInput,
@@ -24,6 +24,7 @@ import {
   vndbRating,
   weightLabel,
 } from "../lib/format";
+import { storyUrl } from "../lib/navigation";
 import { Cover, Glow } from "../components/Cover";
 import { MatchScore } from "../components/MatchScore";
 import { VnBox } from "../components/VnBox";
@@ -91,12 +92,17 @@ export function Detail({
   vn,
   onClose,
   recommendation,
+  onCloseGuardChange,
+  onDiscoverTag,
 }: {
   vn: VnSummary;
   onClose: () => void;
   recommendation?: Recommendation;
+  onCloseGuardChange?: (guard: (resume?: () => void) => boolean) => () => void;
+  onDiscoverTag?: (tag: { id: string; name: string }) => void;
 }) {
   const modalRef = useModal<HTMLElement>({ lockScroll: false });
+  const present = useIsPresent();
   const qc = useQueryClient();
   const toast = useToast();
   const reduced = useReducedMotion();
@@ -137,19 +143,56 @@ export function Detail({
     }
   }, [current, lib.isSuccess]);
 
+  useEffect(() => {
+    if (!initialized.current || !current) return;
+    const next = keyOf(trackerOf(current));
+    if (keyOf(form) === savedKey && next !== savedKey) {
+      setForm(trackerOf(current));
+      setSavedKey(next);
+    }
+  }, [current, form, savedKey]);
+
   const d = detail.data ?? (vn as VnDetail);
   const input: LibraryInput = { vn: d, ...form };
   const formKey = keyOf(form);
   const inLibrary = Boolean(current);
   const dirty = formKey !== savedKey;
 
+  const pendingLeave = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      pendingLeave.current = null;
+    },
+    [],
+  );
+  const latestFormKey = useRef(formKey);
+  latestFormKey.current = formKey;
   const save = useMutation({
     mutationFn: (next: LibraryInput) => api.saveLibrary(vn.id, next),
-    onSuccess: (_data, next) => {
+    onSuccess: (data, next) => {
       if (!inLibrary) toast(`Added ${vn.title} to your library`);
       setSavedKey(keyOf(next));
+      qc.setQueryData<LibraryEntry[]>(["library"], (previous) => [
+        ...(previous ?? []).filter((entry) => entry.vndbId !== data.vndbId),
+        data,
+      ]);
       qc.invalidateQueries({ queryKey: ["library"] });
       invalidateMatches(qc);
+      if (pendingLeave.current && latestFormKey.current === keyOf(next)) {
+        const resume = pendingLeave.current;
+        setTimeout(() => {
+          if (
+            pendingLeave.current !== resume ||
+            latestFormKey.current !== keyOf(next)
+          )
+            return;
+          pendingLeave.current = null;
+          resume();
+        }, 0);
+      }
+    },
+    onError: () => {
+      pendingLeave.current = null;
     },
   });
   // Titles already in the library save themselves shortly after each change.
@@ -189,21 +232,47 @@ export function Detail({
     },
   });
 
-  const requestClose = () => {
-    if (inLibrary && dirty && !save.isError) save.mutate(input);
-    else if (
+  const prepareClose = (resume?: () => void) => {
+    if (save.isPending || (inLibrary && dirty && !save.isError)) {
+      if (!pendingLeave.current) toast("Saving your changes before leaving…");
+      pendingLeave.current = resume ?? onClose;
+      if (!save.isPending) save.mutate(input);
+      return false;
+    }
+    if (
+      inLibrary &&
+      dirty &&
+      save.isError &&
+      !window.confirm(
+        `Your changes for ${vn.title} could not be saved. Discard them and leave?`,
+      )
+    )
+      return false;
+    if (
       !inLibrary &&
       dirty &&
       !window.confirm(
         `Discard your tracker changes for ${vn.title}? It isn’t in your library yet.`,
       )
     )
-      return;
-    onClose();
+      return false;
+    pendingLeave.current = null;
+    return true;
+  };
+  const prepareCloseRef = useRef(prepareClose);
+  prepareCloseRef.current = prepareClose;
+  useEffect(() => {
+    if (!present) return;
+    return onCloseGuardChange?.((resume) => prepareCloseRef.current(resume));
+  }, [onCloseGuardChange, present]);
+  const requestClose = () => {
+    if (!present) return;
+    if (prepareClose()) onClose();
   };
   const closeRef = useRef(requestClose);
   closeRef.current = requestClose;
   useEffect(() => {
+    if (!present) return;
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.preventDefault();
@@ -213,7 +282,7 @@ export function Detail({
     };
     document.addEventListener("keydown", handleEscape, true);
     return () => document.removeEventListener("keydown", handleEscape, true);
-  }, [activeTag]);
+  }, [activeTag, present]);
 
   const visibleTags = useMemo(
     () => d.tags.filter((t) => t.spoiler <= spoilerLevel),
@@ -238,7 +307,7 @@ export function Detail({
     if (!pref.data) return;
     const existing = pref.data.tagPreferences.find((x) => x.id === tag.id);
     const rest = pref.data.tagPreferences.filter((x) => x.id !== tag.id);
-    const clearing = existing?.weight === weight;
+    const clearing = weightLabel(existing?.weight)?.weight === weight;
     taste.mutate({
       ...pref.data,
       completed: true,
@@ -348,6 +417,24 @@ export function Detail({
             >
               View on VNDB <ExternalLink aria-hidden="true" />
             </a>
+            <button
+              className="link-button story-share"
+              onClick={() => {
+                if (!navigator.clipboard?.writeText) {
+                  toast("Copy the story link from your browser’s address bar.");
+                  return;
+                }
+                void navigator.clipboard.writeText(storyUrl(d.id)).then(
+                  () => toast("Story link copied"),
+                  () =>
+                    toast(
+                      "Could not copy. You can copy the link from your address bar.",
+                    ),
+                );
+              }}
+            >
+              Copy story link <Link aria-hidden="true" />
+            </button>
           </div>
         </header>
         <section className="detail-copy">
@@ -551,6 +638,11 @@ export function Detail({
                       choice={choice}
                       pending={!pref.data || taste.isPending}
                       onChoose={(w) => setTag(tag, w)}
+                      onFindStories={
+                        tag.spoiler === 0 && onDiscoverTag
+                          ? () => onDiscoverTag(tag)
+                          : undefined
+                      }
                       onClose={() => setActiveTag(null)}
                     />
                   );

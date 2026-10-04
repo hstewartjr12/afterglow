@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { languages } from "@afterglow/shared/constants";
 import { platformSchema } from "@afterglow/shared";
 import {
   fetchCover,
@@ -43,6 +44,16 @@ async function route(request: Request, env: Env): Promise<Response> {
         q: z.string().max(100).default("").parse(optional("q")),
         page: page(),
         platform: platformSchema.optional().parse(optional("platform")),
+        language: z
+          .string()
+          .refine((value) => languages.includes(value), "Invalid language")
+          .optional()
+          .parse(optional("language")),
+        tag: z
+          .string()
+          .regex(/^g\d+$/)
+          .optional()
+          .parse(optional("tag")),
         length: z.coerce
           .number()
           .int()
@@ -87,7 +98,19 @@ async function route(request: Request, env: Env): Promise<Response> {
       .parse(raw ? raw.split(",") : []);
     const spoilers =
       z.enum(["0", "1"]).default("0").parse(optional("spoilers")) === "1";
-    return json(await personalizedVns(tags, spoilers));
+    return json(
+      await personalizedVns(
+        tags,
+        spoilers,
+        z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(3)
+          .default(1)
+          .parse(optional("page")),
+      ),
+    );
   }
   if (path.startsWith("/api/vndb/vn/")) {
     const vn = await getVn(idSchema.parse(path.slice("/api/vndb/vn/".length)));

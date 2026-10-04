@@ -142,6 +142,8 @@ export type VnSearchOptions = {
   q: string;
   page: number;
   platform?: string;
+  language?: string;
+  tag?: string;
   length?: number;
   year?: number;
   rating?: number;
@@ -150,7 +152,22 @@ export type VnSearchOptions = {
 export const searchVns = async (options: VnSearchOptions) => {
   const predicates: any[] = [];
   if (options.q) predicates.push(["search", "=", options.q]);
-  if (options.platform) predicates.push(["platform", "=", options.platform]);
+  if (options.language && options.platform) {
+    // Both requirements must hold for the same release, not two editions of a VN.
+    predicates.push([
+      "release",
+      "=",
+      [
+        "and",
+        ["lang", "=", options.language],
+        ["platform", "=", options.platform],
+      ],
+    ]);
+  } else {
+    if (options.language) predicates.push(["lang", "=", options.language]);
+    if (options.platform) predicates.push(["platform", "=", options.platform]);
+  }
+  if (options.tag) predicates.push(["tag", "=", [options.tag, 0, 0.5]]);
   if (options.length) predicates.push(["length", "=", options.length]);
   if (options.year)
     predicates.push(["released", ">=", `${options.year}-01-01`]);
@@ -181,12 +198,13 @@ export async function getVn(id: string) {
       .results[0] ?? null
   );
 }
-export const popularVns = () =>
-  query("popular3", {
+export const popularVns = (page = 1) =>
+  query(page === 1 ? "popular3" : `popular3:page${page}`, {
     filters: ["and", ["rating", ">=", 70], ["votecount", ">=", 100]],
     sort: "rating",
     reverse: true,
     results: 40,
+    page,
   });
 export async function searchTags(
   q: string,
@@ -252,27 +270,54 @@ export async function searchTags(
 export async function personalizedVns(
   tagIds: string[],
   includeSpoilers = false,
+  maxPage = 1,
 ) {
-  if (!tagIds.length) return (await popularVns()).results;
+  const seeds = [...new Set(tagIds)].slice(0, 8);
   const spoilerLevel = includeSpoilers ? 2 : 0;
-  const filters = [
-    "or",
-    ...tagIds.slice(0, 8).map((id) => ["tag", "=", [id, spoilerLevel, 0.5]]),
-  ];
-  const [themed, popular] = await Promise.all([
-    query(`personal3:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`, {
+  const predicates = seeds.map((id) => ["tag", "=", [id, spoilerLevel, 0.5]]);
+  const filters =
+    predicates.length === 1 ? predicates[0] : ["or", ...predicates];
+  const baseKey = `personal3:${spoilerLevel}:${[...seeds].sort().join(",")}`;
+  const themedPage = (page: number) =>
+    query(page === 1 ? baseKey : `${baseKey}:page${page}`, {
       filters,
       sort: "rating",
       reverse: true,
       results: 60,
-    }),
+      page,
+    });
+  let [themed, popular] = await Promise.all([
+    seeds.length
+      ? themedPage(1)
+      : Promise.resolve({ results: [], more: false } as VnPage<VnSummary>),
     popularVns(),
   ]);
-  return [
+  const themedResults = [...themed.results];
+  const popularResults = [...popular.results];
+  const merge = () => [
     ...new Map(
-      [...themed.results, ...popular.results].map((v) => [v.id, v]),
+      [...themedResults, ...popularResults].map((vn) => [vn.id, vn]),
     ).values(),
   ];
+  let candidates = merge();
+  // The browser asks for another bounded public page only when its local
+  // exclusions leave too few picks. No personal library or hidden IDs are sent.
+  for (
+    let page = 2;
+    page <= Math.min(3, maxPage) && (themed.more || popular.more);
+    page++
+  ) {
+    const [nextThemed, nextPopular] = await Promise.all([
+      themed.more ? themedPage(page).catch(() => null) : null,
+      popular.more ? popularVns(page).catch(() => null) : null,
+    ]);
+    themed = nextThemed ?? { results: [], more: false };
+    popular = nextPopular ?? { results: [], more: false };
+    themedResults.push(...themed.results);
+    popularResults.push(...popular.results);
+    candidates = merge();
+  }
+  return candidates;
 }
 
 /** Only VNDB's own image hosts may be fetched through the cover proxy. */

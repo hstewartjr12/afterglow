@@ -1,0 +1,113 @@
+/* A native open button and separate wishlist action keep catalogue cards usable by keyboard. */
+.card-open {
+  position: relative;
+}
+.card-open-button {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+}
+.card-open-button:focus-visible {
+  outline-offset: 6px;
+}
+.card-open .card-cover {
+  position: relative;
+  z-index: 2;
+}
+.quick-wishlist {
+  min-width: 0;
+}
+.vn-card > .quick-wishlist {
+  margin-top: 12px;
+  cursor: default;
+}
+.wishlist-button {
+  min-height: 44px;
+}
+.quick-library-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+.quick-library-status svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+.quick-action-error {
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 0.875rem;
+}
+.hero-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+.hero-feedback .link-button,
+.hero-empty > .link-button {
+  min-height: 44px;
+}
+.recommendation-choices {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.recommendation-choices h2 {
+  font-size: var(--step-3);
+  text-transform: uppercase;
+}
+.recommendation-choices > p {
+  margin-top: 8px;
+}
+.recommendation-choices-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 0;
+  list-style: none;
+}
+.recommendation-choices-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.recommendation-choices-list h3 {
+  font-size: var(--step-0);
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.recommendation-choices-list p {
+  margin-top: 4px;
+  font-size: 0.875rem;
+}
+.recommendation-choices-list button {
+  flex: none;
+  min-height: 44px;
+}
+@media (max-width: 700px) {
+  .hero-feedback {
+    grid-column: 1 / -1;
+    order: 1;
+    margin-top: 0;
+  }
+}
+@media (max-width: 420px) {
+  .recommendation-choices-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}

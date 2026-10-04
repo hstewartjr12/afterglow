@@ -65,6 +65,20 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.story-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+}
+.story-share svg {
+  width: 14px;
+  height: 14px;
+}
+.tag-find-stories {
+  margin-top: 12px;
+  min-height: 40px;
+}
 .vndb-link svg {
   width: 14px;
   height: 14px;

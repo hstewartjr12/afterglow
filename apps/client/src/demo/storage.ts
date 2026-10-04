@@ -1,4 +1,17 @@
 import {
+  backupImportSchema,
+  backupSchema,
+  feedbackListSchema,
+  recommendationFeedbackSchema,
+  timestampSchema,
+  vndbIdSchema,
+  vnSummarySchema,
+  MAX_BACKUP_BYTES,
+  type Backup,
+  type BackupImportInput,
+  type BackupImportResult,
+  type RecommendationFeedback,
+  type VnSummary,
   libraryInputSchema,
   preferencesSchema,
   type LibraryEntry,
@@ -48,7 +61,11 @@ function openDatabase(): Promise<IDBDatabase> {
 async function transaction<T>(
   name: string | string[],
   mode: IDBTransactionMode,
-  action: (tx: IDBTransaction, done: (result: T) => void) => void,
+  action: (
+    tx: IDBTransaction,
+    done: (result: T) => void,
+    fail: (error: unknown) => void,
+  ) => void,
 ): Promise<T> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
@@ -62,16 +79,40 @@ async function transaction<T>(
         ),
       );
     tx.onerror = () => {}; // The abort handler reports transaction failures after rollback.
-    try {
-      action(tx, (value) => {
-        result = value;
-      });
-    } catch (error) {
-      tx.abort();
+    const fail = (error: unknown) => {
+      try {
+        tx.abort();
+      } catch {
+        /* Already completed. */
+      }
       reject(error);
+    };
+    try {
+      action(
+        tx,
+        (value) => {
+          result = value;
+        },
+        fail,
+      );
+    } catch (error) {
+      fail(error);
     }
   });
 }
+const FEEDBACK_KEY = "recommendation-feedback";
+const activeFeedback = (items: RecommendationFeedback[]) =>
+  items.filter(
+    (item) => item.until === null || Date.parse(item.until) > Date.now(),
+  );
+const parseFeedback = (value: unknown) => {
+  const parsed = feedbackListSchema.safeParse(value ?? []);
+  if (!parsed.success)
+    throw new Error(
+      "Your saved recommendation choices could not be read. No data was changed.",
+    );
+  return activeFeedback(parsed.data);
+};
 export const storage = {
   library: () =>
     transaction<LibraryEntry[]>("library", "readonly", (tx, done) => {
@@ -104,6 +145,202 @@ export const storage = {
         done(entry);
       };
     });
+  },
+  quickWishlist: (vn: VnSummary) => {
+    const id = vndbIdSchema.parse(vn.id);
+    const parsed = libraryInputSchema.parse({
+      status: "wishlist",
+      vn: vnSummarySchema.parse(vn),
+    });
+    return transaction<{ entry: LibraryEntry; created: boolean }>(
+      "library",
+      "readwrite",
+      (tx, done) => {
+        const store = tx.objectStore("library");
+        const request = store.get(id);
+        request.onsuccess = () => {
+          if (request.result) {
+            done({ entry: request.result, created: false });
+            return;
+          }
+          const now = new Date().toISOString();
+          const entry: LibraryEntry = {
+            ...parsed,
+            id: Number(id.slice(1)),
+            vndbId: id,
+            createdAt: now,
+            updatedAt: now,
+          };
+          store.add(entry);
+          done({ entry, created: true });
+        };
+      },
+    );
+  },
+  feedback: () =>
+    transaction<RecommendationFeedback[]>(
+      "settings",
+      "readonly",
+      (tx, done, fail) => {
+        const request = tx.objectStore("settings").get(FEEDBACK_KEY);
+        request.onsuccess = () => {
+          try {
+            done(parseFeedback(request.result));
+          } catch (error) {
+            fail(error);
+          }
+        };
+      },
+    ),
+  saveFeedback: (vn: VnSummary, until: string | null) => {
+    const id = vndbIdSchema.parse(vn.id);
+    vnSummarySchema.parse(vn);
+    timestampSchema.nullable().parse(until);
+    return transaction<RecommendationFeedback>(
+      "settings",
+      "readwrite",
+      (tx, done, fail) => {
+        const store = tx.objectStore("settings");
+        const request = store.get(FEEDBACK_KEY);
+        request.onsuccess = () => {
+          try {
+            const previous = parseFeedback(request.result);
+            const entry = recommendationFeedbackSchema.parse({
+              vndbId: id,
+              vn,
+              until,
+              createdAt:
+                previous.find((item) => item.vndbId === id)?.createdAt ??
+                new Date().toISOString(),
+            });
+            store.put(
+              [...previous.filter((item) => item.vndbId !== id), entry],
+              FEEDBACK_KEY,
+            );
+            done(entry);
+          } catch (error) {
+            fail(error);
+          }
+        };
+      },
+    );
+  },
+  removeFeedback: (id: string) => {
+    vndbIdSchema.parse(id);
+    return transaction<void>("settings", "readwrite", (tx, done, fail) => {
+      const store = tx.objectStore("settings");
+      const request = store.get(FEEDBACK_KEY);
+      request.onsuccess = () => {
+        try {
+          store.put(
+            parseFeedback(request.result).filter((item) => item.vndbId !== id),
+            FEEDBACK_KEY,
+          );
+          done();
+        } catch (error) {
+          fail(error);
+        }
+      };
+    });
+  },
+  backup: () =>
+    transaction<Backup>(
+      ["library", "settings"],
+      "readonly",
+      (tx, done, fail) => {
+        const library = tx.objectStore("library").getAll();
+        const preferences = tx.objectStore("settings").get("preferences");
+        const feedback = tx.objectStore("settings").get(FEEDBACK_KEY);
+        let pending = 3;
+        const complete = () => {
+          if (--pending) return;
+          try {
+            done(
+              backupSchema.parse({
+                kind: "afterglow-backup",
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                library: library.result,
+                preferences: preferencesSchema.parse(preferences.result ?? {}),
+                feedback: parseFeedback(feedback.result),
+              }),
+            );
+          } catch {
+            fail(
+              new Error(
+                "Your saved data could not be read as a complete backup. No data was changed.",
+              ),
+            );
+          }
+        };
+        library.onsuccess = complete;
+        preferences.onsuccess = complete;
+        feedback.onsuccess = complete;
+      },
+    ),
+  importBackup: (value: BackupImportInput) => {
+    const input = backupImportSchema.parse(value);
+    if (
+      new TextEncoder().encode(JSON.stringify(input.backup)).byteLength >
+      MAX_BACKUP_BYTES
+    )
+      throw new Error("This backup is larger than 10 MB. No data was changed.");
+    return transaction<BackupImportResult>(
+      ["library", "settings"],
+      "readwrite",
+      (tx, done, fail) => {
+        const library = tx.objectStore("library");
+        const settings = tx.objectStore("settings");
+        const existing = library.getAll();
+        existing.onsuccess = () => {
+          try {
+            const ids = new Map(
+              (existing.result as LibraryEntry[]).map((entry) => [
+                entry.vndbId,
+                entry.id,
+              ]),
+            );
+            const result = { added: 0, updated: 0, kept: 0 };
+            for (const entry of input.backup.library) {
+              if (ids.has(entry.vndbId) && !input.overwrite) {
+                result.kept++;
+                continue;
+              }
+              library.put({
+                ...entry,
+                id: ids.get(entry.vndbId) ?? Number(entry.vndbId.slice(1)),
+              });
+              if (ids.has(entry.vndbId)) result.updated++;
+              else result.added++;
+            }
+            if (input.includePreferences)
+              settings.put(input.backup.preferences, "preferences");
+            if (input.backup.feedback.length) {
+              const request = settings.get(FEEDBACK_KEY);
+              request.onsuccess = () => {
+                try {
+                  const merged = new Map(
+                    parseFeedback(request.result).map((entry) => [
+                      entry.vndbId,
+                      entry,
+                    ]),
+                  );
+                  for (const entry of activeFeedback(input.backup.feedback))
+                    if (input.overwrite || !merged.has(entry.vndbId))
+                      merged.set(entry.vndbId, entry);
+                  settings.put([...merged.values()], FEEDBACK_KEY);
+                  done(result);
+                } catch (error) {
+                  fail(error);
+                }
+              };
+            } else done(result);
+          } catch (error) {
+            fail(error);
+          }
+        };
+      },
+    );
   },
   removeLibrary: (id: string) =>
     transaction<void>("library", "readwrite", (tx, done) => {
