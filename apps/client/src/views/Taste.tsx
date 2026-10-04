@@ -7,9 +7,16 @@ import type { Preferences, VndbTag } from "@afterglow/shared";
 import { platforms } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { invalidateMatches } from "../queries";
-import { lengths, plural, platformName, tagWeights } from "../lib/format";
+import {
+  lengths,
+  plural,
+  platformName,
+  tagWeights,
+  weightLabel,
+} from "../lib/format";
 import { Loading, ErrorState } from "../components/status";
 import { useReducedMotion } from "../lib/motion";
+import { RecommendationFeedbackPanel } from "../components/RecommendationFeedback";
 import { TagIndex } from "./TagIndex";
 // `completed` only records that a profile was ever saved, so it never makes a draft dirty.
 const profileKey = (p: Preferences) =>
@@ -42,6 +49,12 @@ export function Taste({
   const draftKey = useMemo(() => draft && profileKey(draft), [draft]);
   const dirty = Boolean(draftKey && baseline && draftKey !== baseline);
   useEffect(() => {
+    if (pref.data && draft && !dirty && baseline !== profileKey(pref.data)) {
+      setDraft(pref.data);
+      setBaseline(profileKey(pref.data));
+    }
+  }, [pref.data, draft, dirty, baseline]);
+  useEffect(() => {
     onDirtyChange?.(dirty);
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -51,9 +64,10 @@ export function Taste({
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const save = useMutation({
     mutationFn: api.savePreferences,
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       setSavedJson(profileKey(variables));
       setBaseline(profileKey(variables));
+      qc.setQueryData(["preferences"], data);
       invalidateMatches(qc);
       qc.invalidateQueries({ queryKey: ["preferences"] });
     },
@@ -135,7 +149,7 @@ export function Taste({
       <div className="preference-groups">
         {tagWeights.map((group) => {
           const tags = draft.tagPreferences.filter(
-            (t) => t.weight === group.weight,
+            (t) => weightLabel(t.weight)?.weight === group.weight,
           );
           return (
             <section
@@ -275,6 +289,7 @@ export function Taste({
         </button>
       </div>
       {save.isError && <ErrorState message={save.error.message} />}
+      <RecommendationFeedbackPanel />
       <AnimatePresence>
         {index !== null && (
           <TagIndex

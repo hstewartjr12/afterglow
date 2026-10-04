@@ -50,6 +50,7 @@ async function fixture(page) {
     useSpoilerTagsInRecommendations: false,
   };
   let library = [];
+  let feedback = [];
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -57,6 +58,18 @@ async function fixture(page) {
     if (url.pathname === "/api/preferences") {
       if (request.method() === "PUT") preferences = request.postDataJSON();
       body = preferences;
+    } else if (url.pathname === "/api/feedback") body = feedback;
+    else if (url.pathname.startsWith("/api/feedback/")) {
+      const id = url.pathname.split("/").pop();
+      feedback = feedback.filter((entry) => entry.vndbId !== id);
+      if (request.method() === "PUT") {
+        body = {
+          vndbId: id,
+          ...request.postDataJSON(),
+          createdAt: new Date().toISOString(),
+        };
+        feedback.push(body);
+      } else body = null;
     } else if (url.pathname === "/api/library") body = library;
     else if (url.pathname.startsWith("/api/library/")) {
       const input = request.postDataJSON();
@@ -64,8 +77,8 @@ async function fixture(page) {
         id: 1,
         vndbId: story.id,
         ...input,
-        createdAt: "2026-01-01",
-        updatedAt: "2026-01-01",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
       };
       library = [body];
     } else if (url.pathname === "/api/recommendations") body = [recommendation];

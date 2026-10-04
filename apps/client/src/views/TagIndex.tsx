@@ -28,6 +28,7 @@ export function TagIndex({
   selected,
   initialCategory,
   focusWeight,
+  mode = "taste",
 }: {
   onClose: () => void;
   onPick: (t: VndbTag, w: number) => void;
@@ -35,6 +36,7 @@ export function TagIndex({
   initialCategory: string;
   /** Opened from a group's "Add tag": that choice leads each row. */
   focusWeight?: number;
+  mode?: "taste" | "filter";
 }) {
   const modalRef = useModal<HTMLElement>({ lockScroll: false });
   const reduced = useReducedMotion();
@@ -83,13 +85,15 @@ export function TagIndex({
       >
         <header className="tag-index-head">
           <div>
-            <h2>Tag index</h2>
+            <h2>{mode === "filter" ? "Find stories by theme" : "Tag index"}</h2>
             <p className="muted">
-              {focus
-                ? `Adding to ${focus.label}. You can also choose another group per tag.`
-                : tags.data
-                  ? `${plural(tags.data.recordCount, "tag")} from VNDB`
-                  : "Every tag from VNDB"}
+              {mode === "filter"
+                ? "Choose a theme to filter the catalogue. Only spoiler-free matches are shown."
+                : focus
+                  ? `Adding to ${focus.label}. You can also choose another group per tag.`
+                  : tags.data
+                    ? `${plural(tags.data.recordCount, "tag")} from VNDB`
+                    : "Every tag from VNDB"}
             </p>
           </div>
           <button
@@ -163,11 +167,14 @@ export function TagIndex({
                     <span className="mono">{plural(tag.vnCount, "title")}</span>
                   </span>
                   <div className="tag-row-actions">
-                    {choices.map(({ weight: w, label }) => (
+                    {(mode === "filter"
+                      ? [{ weight: 1, label: "Find stories" }]
+                      : choices
+                    ).map(({ weight: w, label }) => (
                       <button
                         key={w}
                         className={`tag-choice ${focus?.weight === w ? "is-focus" : ""}`}
-                        aria-pressed={current === w}
+                        aria-pressed={weightLabel(current)?.weight === w}
                         onClick={() => onPick(tag, w)}
                       >
                         {label}

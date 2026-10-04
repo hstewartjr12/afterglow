@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom/vitest";
+import { beforeEach } from "vitest";
+beforeEach(() => window.history.replaceState(null, "", "/"));
 import { MotionGlobalConfig } from "motion/react";
 
 // Tests check behavior, not animation timing: let enter/exit animations finish instantly.

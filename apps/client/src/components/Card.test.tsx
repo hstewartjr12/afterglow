@@ -6,6 +6,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { LazyMotion, domMax } from "motion/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { VnSummary } from "@afterglow/shared";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Card } from "./Card";
@@ -45,12 +46,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 function start() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, gcTime: Infinity } },
+  });
+  client.setQueryData(["library"], []);
   const view = render(
-    <LazyMotion features={domMax} strict>
-      <Card vn={vn} onOpen={() => {}} />
-    </LazyMotion>,
+    <QueryClientProvider client={client}>
+      <LazyMotion features={domMax} strict>
+        <Card vn={vn} onOpen={() => {}} />
+      </LazyMotion>
+    </QueryClientProvider>,
   );
-  const card = screen.getByRole("button", { name: vn.title });
+  const card = screen
+    .getByRole("button", { name: vn.title })
+    .closest("article")!;
   const measure = vi
     .spyOn(card.querySelector(".cover")!, "getBoundingClientRect")
     .mockReturnValue({ left: 0, top: 0, width: 100, height: 150 } as DOMRect);

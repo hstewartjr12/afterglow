@@ -13,7 +13,9 @@ import {
   type LibraryEntry,
   type Preferences,
 } from "@afterglow/shared";
-import { db } from "./db.js";
+import { languages } from "@afterglow/shared/constants";
+import { recommendationTagIds } from "@afterglow/shared/candidates";
+import { db, serializeDatabaseOperation } from "./db.js";
 import { appSettings, libraryEntries } from "./schema.js";
 import {
   fetchCover,
@@ -24,6 +26,7 @@ import {
   searchVns,
 } from "./vndb.js";
 import { rankRecommendations } from "./recommend.js";
+import { registerDataRoutes, readFeedback } from "./dataRoutes.js";
 
 const PORT = Number(process.env.PORT) || 3001;
 // No accounts protect this API, so only listen on this machine unless asked otherwise.
@@ -34,7 +37,8 @@ const optional = (value: unknown) => value || undefined;
 
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "12mb" }));
+registerDataRoutes(app);
 
 function serialize(r: typeof libraryEntries.$inferSelect): LibraryEntry {
   return {
@@ -92,6 +96,16 @@ app.get("/api/vndb/search", async (req, res) => {
   const platform = platformSchema
     .optional()
     .parse(optional(req.query.platform));
+  const language = z
+    .string()
+    .refine((value) => languages.includes(value), "Unknown language")
+    .optional()
+    .parse(optional(req.query.language));
+  const tag = z
+    .string()
+    .regex(/^g\d+$/)
+    .optional()
+    .parse(optional(req.query.tag));
   const length = z.coerce
     .number()
     .int()
@@ -117,7 +131,19 @@ app.get("/api/vndb/search", async (req, res) => {
     .enum(["rating", "released", "votecount", "title", "searchrank"])
     .optional()
     .parse(optional(req.query.sort));
-  res.json(await searchVns({ q, page, platform, length, year, rating, sort }));
+  res.json(
+    await searchVns({
+      q,
+      page,
+      platform,
+      language,
+      tag,
+      length,
+      year,
+      rating,
+      sort,
+    }),
+  );
 });
 
 app.get("/api/vndb/tags", async (req, res) => {
@@ -180,18 +206,21 @@ app.put("/api/library/:vndbId", async (req, res) => {
     vnJson: JSON.stringify(input.vn),
     updatedAt: now,
   };
-  const [row] = await db
-    .insert(libraryEntries)
-    .values({ vndbId: id, createdAt: now, ...fields })
-    .onConflictDoUpdate({ target: libraryEntries.vndbId, set: fields })
-    .returning();
+  const [row] = await serializeDatabaseOperation(() =>
+    db
+      .insert(libraryEntries)
+      .values({ vndbId: id, createdAt: now, ...fields })
+      .onConflictDoUpdate({ target: libraryEntries.vndbId, set: fields })
+      .returning(),
+  );
   res.json(serialize(row));
 });
 
 app.delete("/api/library/:vndbId", async (req, res) => {
-  await db
-    .delete(libraryEntries)
-    .where(eq(libraryEntries.vndbId, vndbId.parse(req.params.vndbId)));
+  const id = vndbId.parse(req.params.vndbId);
+  await serializeDatabaseOperation(() =>
+    db.delete(libraryEntries).where(eq(libraryEntries.vndbId, id)),
+  );
   res.status(204).end();
 });
 
@@ -202,25 +231,33 @@ app.get("/api/preferences", async (_req, res) => {
 app.put("/api/preferences", async (req, res) => {
   const p = preferencesSchema.parse(req.body);
   const value = JSON.stringify(p);
-  await db
-    .insert(appSettings)
-    .values({ key: "preferences", value })
-    .onConflictDoUpdate({ target: appSettings.key, set: { value } });
+  await serializeDatabaseOperation(() =>
+    db
+      .insert(appSettings)
+      .values({ key: "preferences", value })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value } }),
+  );
   res.json(p);
 });
 
 app.get("/api/recommendations", async (_req, res) => {
-  const [library, prefs] = await Promise.all([
+  const [library, prefs, feedback] = await Promise.all([
     readLibrary(),
     readPreferences(),
+    readFeedback(),
   ]);
-  const positiveIds = prefs.tagPreferences
-    .filter((p) => p.weight > 0 && /^g\d+$/.test(p.id))
-    .sort((a, b) => b.weight - a.weight)
-    .map((p) => p.id);
+  const positiveIds = recommendationTagIds(library, prefs);
+  const now = Date.now();
+  const excluded = new Set([
+    ...library.map((entry) => entry.vndbId),
+    ...feedback
+      .filter((entry) => entry.until === null || Date.parse(entry.until) > now)
+      .map((entry) => entry.vndbId),
+  ]);
   const candidates = await personalizedVns(
     positiveIds,
     prefs.useSpoilerTagsInRecommendations,
+    excluded,
   );
   res.json(rankRecommendations(candidates, library, prefs, true, 24));
 });

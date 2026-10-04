@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { ArrowRight, ChevronRight, Heart, Search } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
 import { libraryStatuses } from "@afterglow/shared/constants";
+import { defaultLibrary, type LibraryState } from "../lib/navigation";
+import { BackupPanel } from "../components/BackupPanel";
 import { api } from "../api";
 import { activateOnKey, altTitle, plural, statusLabel } from "../lib/format";
 import { easeOut, useReducedMotion } from "../lib/motion";
@@ -14,15 +16,31 @@ import { Loading, ErrorState } from "../components/status";
 export function LibraryView({
   open,
   discover,
+  state,
+  onChange,
 }: {
   open: (v: VnSummary) => void;
   discover: () => void;
+  state?: LibraryState;
+  onChange?: (state: LibraryState) => void;
 }) {
   const lib = useQuery({ queryKey: ["library"], queryFn: api.library });
-  const [filter, setFilter] = useState("all");
-  const [term, setTerm] = useState("");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [sort, setSort] = useState("updated");
+  const [localState, setLocalState] = useState(defaultLibrary);
+  const currentState = state ?? localState;
+  const stateRef = useRef(currentState);
+  stateRef.current = currentState;
+  const { filter, term, favoritesOnly, sort } = currentState;
+  const update = (patch: Partial<LibraryState>) => {
+    const next = { ...stateRef.current, ...patch };
+    stateRef.current = next;
+    if (onChange) onChange(next);
+    else setLocalState(next);
+  };
+  const setFilter = (filter: string) => update({ filter });
+  const setTerm = (term: string) => update({ term });
+  const setFavoritesOnly = (favoritesOnly: boolean) =>
+    update({ favoritesOnly });
+  const setSort = (sort: string) => update({ sort });
   const reduced = useReducedMotion();
   const shown = useMemo(() => {
     const query = term.trim().toLocaleLowerCase();
@@ -59,11 +77,7 @@ export function LibraryView({
   }, [lib.data]);
   const reading = (lib.data ?? []).filter((item) => item.status === "playing");
   const active = filter !== "all" || Boolean(term) || favoritesOnly;
-  const reset = () => {
-    setFilter("all");
-    setTerm("");
-    setFavoritesOnly(false);
-  };
+  const reset = () => update({ filter: "all", term: "", favoritesOnly: false });
   return (
     <main className="page library">
       <section className="page-head library-head">
@@ -123,6 +137,7 @@ export function LibraryView({
           </div>
         </section>
       )}
+      <BackupPanel />
       <div className="library-tools">
         <div className="chips" role="group" aria-label="Library status">
           {["all", ...libraryStatuses].map((f) => (

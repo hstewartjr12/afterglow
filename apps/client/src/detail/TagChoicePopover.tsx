@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import * as m from "motion/react-m";
 import { createPortal } from "react-dom";
 import type { VnSummary } from "@afterglow/shared";
-import { tagWeights } from "../lib/format";
+import { tagWeights, weightLabel } from "../lib/format";
 import { useReducedMotion } from "../lib/motion";
 
 // Phrased as a visual novel choice, one per line.
@@ -18,6 +18,7 @@ export function TagChoicePopover({
   pending,
   onChoose,
   onClose,
+  onFindStories,
 }: {
   anchor: HTMLElement;
   tag: VnSummary["tags"][number];
@@ -25,6 +26,7 @@ export function TagChoicePopover({
   pending: boolean;
   onChoose: (weight: number) => void;
   onClose: () => void;
+  onFindStories?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
@@ -114,9 +116,9 @@ export function TagChoicePopover({
           <m.button
             key={w}
             disabled={pending}
-            aria-label={`${choice === w ? "Remove" : "Mark"} ${tag.name} as ${label.toLowerCase()}`}
-            aria-pressed={choice === w}
-            className={`choice ${choice === w ? "selected" : ""}`}
+            aria-label={`${weightLabel(choice)?.weight === w ? "Remove" : "Mark"} ${tag.name} as ${label.toLowerCase()}`}
+            aria-pressed={weightLabel(choice)?.weight === w}
+            className={`choice ${weightLabel(choice)?.weight === w ? "selected" : ""}`}
             onClick={() => onChoose(w)}
             initial={reduced ? false : { opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -131,6 +133,14 @@ export function TagChoicePopover({
         ))}
       </div>
       {choice != null && <small>Choose it again to clear.</small>}
+      {onFindStories && (
+        <button
+          className="link-button tag-find-stories"
+          onClick={onFindStories}
+        >
+          Find stories with this theme →
+        </button>
+      )}
     </m.div>,
     document.body,
   );

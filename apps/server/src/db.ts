@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+export { serializeDatabaseOperation } from "./databaseOperations.js";
 // Resolve from this file (src/ or dist/) so the database location does not depend on the working directory.
 const dataDir = process.env.AFTERGLOW_DATA_DIR
   ? path.resolve(process.env.AFTERGLOW_DATA_DIR)

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./db.js", () => ({
+vi.mock("./db.js", async () => ({
+  ...(await import("./databaseOperations.js")),
   sqlite: { execute: vi.fn(async () => ({ rows: [] })) },
 }));
 import { sqlite } from "./db.js";
@@ -78,6 +79,38 @@ describe("catalogue pagination", () => {
       ["rating", ">=", 80],
     ]);
     expect(result.results).toHaveLength(30);
+  });
+
+  it("matches language and platform on the same release and only uses spoiler-free themes", async () => {
+    await searchVns({
+      q: "story",
+      page: 3,
+      language: "en",
+      platform: "win",
+      tag: "g42",
+      sort: "title",
+    });
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(body).toMatchObject({
+      page: 3,
+      sort: "title",
+      reverse: false,
+      count: true,
+      results: 30,
+    });
+    expect(body.filters).toEqual([
+      "and",
+      ["search", "=", "story"],
+      ["release", "=", ["and", ["lang", "=", "en"], ["platform", "=", "win"]]],
+      ["tag", "=", ["g42", 0, 0.5]],
+    ]);
+  });
+
+  it("supports language alone without imposing a platform", async () => {
+    await searchVns({ q: "", page: 1, language: "ja" });
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(body.filters).toEqual(["lang", "=", "ja"]);
+    expect(body.count).toBe(true);
   });
 });
 
@@ -217,7 +250,82 @@ describe("personalized catalogue", () => {
     const themedBody = JSON.parse(
       vi.mocked(fetch).mock.calls[0][1]!.body as string,
     );
-    expect(themedBody.filters).toEqual(["or", ["tag", "=", ["g1", 2, 0.5]]]);
+    expect(themedBody.filters).toEqual(["tag", "=", ["g1", 2, 0.5]]);
+  });
+
+  it("replenishes popular discoveries after owned or hidden titles exhaust the first page", async () => {
+    const excluded = Array.from({ length: 40 }, (_, i) => `v${i + 1}`);
+    const candidates = await personalizedVns([], false, excluded);
+    expect(candidates).toHaveLength(40);
+    expect(candidates[0].id).toBe("v41");
+    expect(candidates.some((vn) => excluded.includes(vn.id))).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const keys = vi
+      .mocked(sqlite.execute)
+      .mock.calls.map(([statement]) => (statement as any).args[0]);
+    expect(keys).toContain("popular3");
+    expect(keys).toContain("popular3:page2");
+    expect(keys.every((key) => !String(key).includes("v1"))).toBe(true);
+  });
+
+  it("never walks past three pages when all candidates are excluded", async () => {
+    const excluded = Array.from({ length: 200 }, (_, i) => `v${i + 1}`);
+    expect(await personalizedVns([], false, excluded)).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.map(
+          ([, options]) => JSON.parse(options!.body as string).page,
+        ),
+    ).toEqual([1, 2, 3]);
+  });
+
+  it("preserves themed-first merge order across fallback pages and deduplicates overlaps", async () => {
+    vi.mocked(fetch).mockImplementation(async (_url, options) => {
+      const body = JSON.parse(options!.body as string);
+      const themed = body.results === 60;
+      return Response.json({
+        results:
+          body.page === 1
+            ? [{ id: "v1", title: "Excluded" }]
+            : themed
+              ? [
+                  { id: "v2", title: "Theme" },
+                  { id: "v3", title: "Shared theme" },
+                ]
+              : [
+                  { id: "v3", title: "Shared popular" },
+                  { id: "v4", title: "Popular" },
+                ],
+        more: body.page === 1,
+      });
+    });
+    const result = await personalizedVns(["g1", "g2"], false, ["v1"]);
+    expect(result.map((vn) => [vn.id, vn.title])).toEqual([
+      ["v2", "Theme"],
+      ["v3", "Shared popular"],
+      ["v4", "Popular"],
+    ]);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(
+      JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).filters,
+    ).toEqual([
+      "or",
+      ["tag", "=", ["g1", 0, 0.5]],
+      ["tag", "=", ["g2", 0, 0.5]],
+    ]);
+  });
+
+  it("retains usable first-page discoveries if an optional fallback page fails", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        Response.json({ results: [{ id: "v1", title: "Keep" }], more: true }),
+      )
+      .mockRejectedValueOnce(new TypeError("Offline"));
+    const result = await personalizedVns([]);
+    expect(result.map((vn) => vn.id)).toEqual(["v1"]);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 

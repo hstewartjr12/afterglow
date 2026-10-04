@@ -24,6 +24,11 @@ import { Motes } from "../components/Motes";
 import { easeOut, useReducedMotion } from "../lib/motion";
 import { picksHeading } from "../lib/timeOfDay";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
+import { QuickWishlist } from "../components/QuickWishlist";
+import {
+  useRecommendationFeedback,
+  useRecommendationFeedbackActions,
+} from "../lib/recommendationFeedback";
 
 const STRIP_SIZE = 8;
 
@@ -129,11 +134,16 @@ export function Home({
     queryKey: ["preferences"],
     queryFn: api.preferences,
   });
-  const [featured, setFeatured] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const reduced = useReducedMotion();
-  const all = recs.data ?? [];
-  const top = all[featured % Math.max(all.length, 1)];
+  const feedback = useRecommendationFeedback();
+  const choices = useRecommendationFeedbackActions();
+  const excluded = new Set([
+    ...feedback.active.map((item) => item.vndbId),
+    ...(lib.data ?? []).map((item) => item.vndbId),
+  ]);
+  const all = (recs.data ?? []).filter((item) => !excluded.has(item.vn.id));
+  const top = all[0];
   const rest = all.filter((r) => r !== top);
   const strip = showAll ? rest : rest.slice(0, STRIP_SIZE);
   const newcomer =
@@ -243,14 +253,28 @@ export function Home({
                 >
                   Open story <ArrowRight aria-hidden="true" />
                 </button>
-                {all.length > 1 && (
-                  <button
-                    className="menu-choice"
-                    onClick={() => setFeatured((i) => (i + 1) % all.length)}
-                  >
-                    Not tonight — show another
-                  </button>
-                )}
+                <QuickWishlist vn={top.vn} />
+              </div>
+              <div className="hero-feedback">
+                <button
+                  className="menu-choice"
+                  disabled={choices.pending || feedback.isPending}
+                  onClick={() =>
+                    choices.hide(
+                      top.vn,
+                      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                    )
+                  }
+                >
+                  Not tonight — show another
+                </button>
+                <button
+                  className="link-button"
+                  disabled={choices.pending || feedback.isPending}
+                  onClick={() => choices.hide(top.vn, null)}
+                >
+                  Hide this story
+                </button>
               </div>
             </m.div>
           </AnimatePresence>
@@ -268,16 +292,50 @@ export function Home({
       ) : (
         !recs.isError && (
           <section className="hero-empty">
-            <h1>Find the story that stays with you.</h1>
+            <h1>
+              {feedback.active.length
+                ? "You’ve reached the end of these picks."
+                : "Find the story that stays with you."}
+            </h1>
             <p>
-              Afterglow turns VNDB’s deep catalogue into recommendations shaped
-              around your taste.
+              {feedback.active.length
+                ? "Explore Discover, or restore hidden and postponed stories in My taste."
+                : "Afterglow turns VNDB’s deep catalogue into recommendations shaped around your taste."}
             </p>
             <button className="btn btn-primary" onClick={() => go("discover")}>
               Discover <ArrowRight aria-hidden="true" />
             </button>
+            {feedback.active.length > 0 && (
+              <button className="link-button" onClick={() => go("taste")}>
+                Review hidden stories
+              </button>
+            )}
           </section>
         )
+      )}
+      {feedback.isError && (
+        <ErrorState
+          message={feedback.error.message}
+          retry={() => void feedback.refetch()}
+        />
+      )}
+      {choices.save.isError && (
+        <ErrorState
+          message={choices.save.error.message}
+          retry={() => {
+            const last = choices.save.variables;
+            if (last) choices.hide(last.vn, last.until);
+          }}
+        />
+      )}
+      {choices.restore.isError && (
+        <ErrorState
+          message={choices.restore.error.message}
+          retry={() => {
+            if (choices.restore.variables)
+              choices.restoreTitle(choices.restore.variables);
+          }}
+        />
       )}
       <section className="picks" aria-labelledby="picks-title">
         <header className="section-head">

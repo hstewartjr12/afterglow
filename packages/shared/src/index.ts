@@ -89,3 +89,111 @@ export type Recommendation = {
   matchPercent: number;
   reasons: string[];
 };
+
+export const vndbIdSchema = z.string().regex(/^v[1-9]\d*$/, "Invalid VNDB ID");
+export const timestampSchema = z
+  .string()
+  .datetime({ offset: true })
+  .refine((value) => Number.isFinite(Date.parse(value)), "Invalid timestamp");
+const readingDateSchema = z
+  .union([z.string().date(), timestampSchema])
+  .nullable();
+
+export const recommendationFeedbackSchema = z
+  .object({
+    vndbId: vndbIdSchema,
+    vn: vnSummarySchema.extend({ id: vndbIdSchema }),
+    until: timestampSchema.nullable(),
+    createdAt: timestampSchema,
+  })
+  .refine((entry) => entry.vndbId === entry.vn.id, {
+    message: "The feedback VNDB ID must match its story",
+    path: ["vndbId"],
+  });
+export type RecommendationFeedback = z.infer<
+  typeof recommendationFeedbackSchema
+>;
+
+function uniqueVndbIds<T extends { vndbId: string }>(
+  entries: T[],
+  context: z.RefinementCtx,
+) {
+  const ids = new Set<string>();
+  entries.forEach((entry, index) => {
+    if (ids.has(entry.vndbId))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Duplicate VNDB ID: ${entry.vndbId}`,
+        path: [index, "vndbId"],
+      });
+    ids.add(entry.vndbId);
+  });
+}
+
+export const feedbackListSchema = z
+  .array(recommendationFeedbackSchema)
+  .superRefine(uniqueVndbIds);
+
+// Imported personal fields are required. Applying input defaults here could
+// silently erase notes, ratings or reading dates during an explicit overwrite.
+export const backupLibraryEntrySchema = z
+  .object({
+    id: z.number().int().positive(),
+    vndbId: vndbIdSchema,
+    vn: vnSummarySchema.extend({ id: vndbIdSchema }),
+    status: libraryStatusSchema,
+    personalRating: z.number().int().min(1).max(10).nullable(),
+    favorite: z.boolean(),
+    progress: z.number().int().min(0).max(100),
+    notes: z.string().max(5000),
+    startedAt: readingDateSchema,
+    completedAt: readingDateSchema,
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .refine((entry) => entry.vndbId === entry.vn.id, {
+    message: "The library VNDB ID must match its story",
+    path: ["vndbId"],
+  });
+
+const backupPreferencesSchema = z
+  .object({})
+  .passthrough()
+  .superRefine((value, context) => {
+    for (const key of Object.keys(preferencesSchema.shape)) {
+      if (!(key in value))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `The backup is missing taste profile field: ${key}`,
+          path: [key],
+        });
+    }
+  })
+  .pipe(preferencesSchema);
+
+export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
+export const backupSchema = z.object({
+  kind: z.literal("afterglow-backup"),
+  version: z.literal(1),
+  exportedAt: timestampSchema,
+  library: z.array(backupLibraryEntrySchema).superRefine(uniqueVndbIds),
+  preferences: backupPreferencesSchema,
+  feedback: feedbackListSchema.default([]),
+});
+export type Backup = z.infer<typeof backupSchema>;
+export const backupImportSchema = z.object({
+  backup: backupSchema,
+  overwrite: z.boolean().default(false),
+  includePreferences: z.boolean().default(false),
+});
+export type BackupImportInput = z.infer<typeof backupImportSchema>;
+export type BackupImportResult = {
+  added: number;
+  updated: number;
+  kept: number;
+};
+export type UserData = {
+  library: LibraryEntry[];
+  preferences: Preferences;
+  feedback: RecommendationFeedback[];
+};

@@ -1,5 +1,9 @@
 import { requestJson } from "./lib/request";
 import type {
+  Backup,
+  BackupImportInput,
+  BackupImportResult,
+  RecommendationFeedback,
   LibraryEntry,
   LibraryInput,
   Preferences,
@@ -11,6 +15,8 @@ import type {
 export type VnSearchFilters = {
   q: string;
   platform: string;
+  language?: string;
+  tag?: string;
   length: string;
   year: string;
   rating: string;
@@ -30,7 +36,14 @@ export const api = {
       page: String(filters.page ?? 1),
     });
     if (filters.sort) params.set("sort", filters.sort);
-    for (const key of ["platform", "length", "year", "rating"] as const)
+    for (const key of [
+      "platform",
+      "language",
+      "tag",
+      "length",
+      "year",
+      "rating",
+    ] as const)
       if (filters[key]) params.set(key, filters[key]);
     return request<{
       results: VnSummary[];
@@ -55,6 +68,28 @@ export const api = {
   saveLibrary: (id: string, input: LibraryInput) =>
     request<LibraryEntry>(`/api/library/${id}`, {
       method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  quickWishlist: (vn: VnSummary) =>
+    request<{ entry: LibraryEntry; created: boolean }>(
+      `/api/library/${vn.id}/wishlist`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ vn }),
+      },
+    ),
+  feedback: () => request<RecommendationFeedback[]>("/api/feedback"),
+  saveFeedback: (vn: VnSummary, until: string | null) =>
+    request<RecommendationFeedback>(`/api/feedback/${vn.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ vn, until }),
+    }),
+  removeFeedback: (id: string) =>
+    request<void>(`/api/feedback/${id}`, { method: "DELETE" }),
+  backup: () => request<Backup>("/api/backup"),
+  importBackup: (input: BackupImportInput) =>
+    request<BackupImportResult>("/api/backup/import", {
+      method: "POST",
       body: JSON.stringify(input),
     }),
   removeLibrary: (id: string) =>

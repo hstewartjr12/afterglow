@@ -6,11 +6,22 @@ The demo saves your library, notes, and taste preferences in your browser. It do
 
 A local-first visual novel discovery app powered by VNDB. Search titles, build a personal library, search VNDB's full tag catalogue, set weighted taste preferences, and get explainable recommendations.
 
-Discover supports paginated results, platform and reading-length filters, release years, minimum ratings, and sorting. Your library can be searched by title or private notes, filtered by reading status and favorites, and sorted by rating, progress, title, or recent updates.
+Discover supports paginated results, language, platform, theme and reading-length filters, release years, minimum ratings, and sorting. Your library can be searched by title or private notes, filtered by reading status and favorites, and sorted by rating, progress, title, or recent updates.
 
 The interface comes in light, dark, and system themes. Its decorative motion (page eyecatches, cover glows, drifting petals and light, the typewriter "why it fits you" box) switches off when your device asks for reduced motion.
 
 Recommendations combine manual tag weights with each title's VNDB tag relevance, reading-length and platform preferences, VNDB ratings, and signals learned from favorites, ratings, completed stories, and dropped titles.
+
+## Using your library and recommendations
+
+- **Wishlist:** use the button on a card or the featured story to save it without opening details. An existing story shows its reading status; quick saves never replace your notes, rating, progress, or status.
+- **Backup & restore:** open Library and download a JSON backup of your library, notes, taste profile, and recommendation choices. Choose a backup to preview new and matching stories. Restore keeps existing stories and your current taste profile by default. Select the separate replacement and profile options only when you want the backup's versions. Invalid files are rejected before any changes; a failed restore rolls back together.
+- **Recommendations:** candidate stories now draw from both your selected themes and themes in favorites and highly rated stories. Avoided themes, low ratings, and spoiler settings remain respected; titles already collected or hidden are excluded, with a bounded wider search when needed.
+- **Not tonight / Hide:** Not tonight postpones a story for 24 hours; Hide keeps it out until you restore it. Undo reverses either choice. My taste lists hidden and postponed stories with a Restore action. These choices don't change ratings or reading status.
+- **Find by theme:** choose a theme in Discover or use a spoiler-free theme's detail popover to find similar stories. Combine it with language, platform, and other filters.
+- **Browse URLs:** filters and result pages are reflected in the address bar and survive refresh. Library filters stay selected when switching views. Browser Back closes details and returns to browsing; Forward reopens them. Copy story link shares a clean URL containing only the VNDB ID.
+
+Backups can move personal data between the local app and the browser demo. The demo still keeps personal data in the browser; use a backup before clearing site data.
 
 ## Screenshots
 

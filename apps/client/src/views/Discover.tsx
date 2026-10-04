@@ -4,41 +4,69 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import type { VnSummary } from "@afterglow/shared";
 import { api } from "../api";
 import { lengths, platformLabels, releaseYears } from "../lib/format";
+import { languageLabels } from "@afterglow/shared/constants";
+import { defaultDiscover, type DiscoverState } from "../lib/navigation";
+import { TagIndex } from "./TagIndex";
+import { AnimatePresence } from "motion/react";
 import { Card } from "../components/Card";
 import { Loading, ErrorState } from "../components/status";
 const PAGE_SIZE = 30;
 
 export function Discover({
   open,
-  initialTerm,
+  initialTerm = "",
+  state,
+  onChange,
 }: {
   open: (v: VnSummary) => void;
-  initialTerm: string;
+  initialTerm?: string;
+  state?: DiscoverState;
+  onChange?: (state: DiscoverState, push?: boolean) => void;
 }) {
-  const [term, setTerm] = useState(initialTerm);
-  const [filters, setFilters] = useState({
+  const [localFilters, setLocalFilters] = useState<DiscoverState>(() => ({
+    ...defaultDiscover(),
     q: initialTerm,
-    platform: "",
-    length: "",
-    year: "",
-    rating: "",
-    sort: "searchrank",
-    page: 1,
-  });
+  }));
+  const filters = state ?? localFilters;
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  const setFilters = (
+    update: DiscoverState | ((previous: DiscoverState) => DiscoverState),
+    push = false,
+  ) => {
+    const next =
+      typeof update === "function" ? update(filtersRef.current) : update;
+    if (next === filtersRef.current) return;
+    filtersRef.current = next;
+    if (onChange) onChange(next, push);
+    else setLocalFilters(next);
+  };
+  const [term, setTerm] = useState(filters.q);
+  useEffect(() => setTerm(filters.q), [filters.q]);
+  const [tagIndexOpen, setTagIndexOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const resultHeading = useRef<HTMLDivElement>(null);
   const changePage = (page: number) => {
-    setFilters((previous) => ({ ...previous, page }));
+    setFilters((previous) => ({ ...previous, page }), true);
     resultHeading.current?.scrollIntoView?.({ block: "start" });
   };
   const update = (
-    key: "platform" | "length" | "year" | "rating" | "sort",
+    key:
+      "platform" | "language" | "tag" | "length" | "year" | "rating" | "sort",
     value: string,
-  ) => setFilters((previous) => ({ ...previous, [key]: value, page: 1 }));
+  ) =>
+    setFilters((previous) => ({
+      ...previous,
+      [key]: value,
+      ...(key === "tag" ? { tagName: "" } : {}),
+      page: 1,
+    }));
+  const updateSearch = useRef(setFilters);
+  updateSearch.current = setFilters;
   useEffect(() => {
     const timer = setTimeout(
       () =>
-        setFilters((previous) =>
+        updateSearch.current((previous) =>
           previous.q === term.trim()
             ? previous
             : { ...previous, q: term.trim(), page: 1 },
@@ -72,18 +100,12 @@ export function Discover({
   );
   const reset = () => {
     setTerm("");
-    setFilters({
-      q: "",
-      platform: "",
-      length: "",
-      year: "",
-      rating: "",
-      sort: "searchrank",
-      page: 1,
-    });
+    setFilters(defaultDiscover());
   };
   const filterCount = [
     filters.platform,
+    filters.language,
+    filters.tag,
     filters.length,
     filters.year,
     filters.rating,
@@ -103,6 +125,14 @@ export function Discover({
       key: "platform" as const,
       label: platformLabels[filters.platform] ?? filters.platform,
     },
+    filters.language && {
+      key: "language" as const,
+      label: languageLabels[filters.language] ?? filters.language,
+    },
+    filters.tag && {
+      key: "tag" as const,
+      label: filters.tagName || filters.tag,
+    },
     filters.length && {
       key: "length" as const,
       label: lengths[Number(filters.length)],
@@ -113,7 +143,7 @@ export function Discover({
       label: `Rated ${filters.rating}.0+`,
     },
   ].filter(Boolean) as {
-    key: "platform" | "length" | "year" | "rating";
+    key: "platform" | "language" | "tag" | "length" | "year" | "rating";
     label: string;
   }[];
   return (
@@ -165,6 +195,30 @@ export function Discover({
               ))}
             </select>
           </label>
+          <label className="field">
+            <span className="label">Language</span>
+            <select
+              className="select"
+              value={filters.language}
+              onChange={(e) => update("language", e.target.value)}
+            >
+              <option value="">Any language</option>
+              {Object.entries(languageLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="field">
+            <span className="label">Theme</span>
+            <button
+              className="btn theme-filter"
+              onClick={() => setTagIndexOpen(true)}
+            >
+              {filters.tagName || filters.tag || "Choose a theme…"}
+            </button>
+          </div>
           <label className="field">
             <span className="label">Length</span>
             <select
@@ -313,6 +367,25 @@ export function Discover({
           Next →
         </button>
       </nav>
+      <AnimatePresence>
+        {tagIndexOpen && (
+          <TagIndex
+            mode="filter"
+            initialCategory="cont"
+            selected={[]}
+            onClose={() => setTagIndexOpen(false)}
+            onPick={(tag) => {
+              setFilters((previous) => ({
+                ...previous,
+                tag: tag.id,
+                tagName: tag.name,
+                page: 1,
+              }));
+              setTagIndexOpen(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

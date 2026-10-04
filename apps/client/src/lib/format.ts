@@ -95,4 +95,10 @@ export const tagWeights = [
   { weight: -3, label: "Avoid", past: "Avoided" },
 ] as const;
 export const weightLabel = (weight: number | undefined) =>
-  tagWeights.find((w) => w.weight === weight);
+  weight === undefined || weight === 0
+    ? undefined
+    : weight > 1
+      ? tagWeights[0]
+      : weight > 0
+        ? tagWeights[1]
+        : tagWeights[2];
