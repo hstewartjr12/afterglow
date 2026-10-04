@@ -1,6 +1,6 @@
 # Afterglow
 
-[**Try the live demo →**](https://afterglow-demo-hstewartjr12.hstew21.chatgpt.site) — no installation or account required.
+[**Try the live demo →**](https://afterglow-demo.hstew21.chatgpt.site) — no installation or account required.
 
 The demo saves your library, notes, and taste preferences in your browser. It does not sync across devices, and clearing site data removes your demo saves.
 
