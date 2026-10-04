@@ -1,32 +1,60 @@
 import * as m from "motion/react-m";
+import { useCallback, useEffect, useRef } from "react";
 import type { VnSummary } from "@afterglow/shared";
 import { activateOnKey, lengths, vndbRating } from "../lib/format";
 import {
   easeOut,
-  prefersReducedMotion,
   sheetTransition,
   useFlightLayer,
+  useReducedMotion,
 } from "../lib/motion";
 import { Cover } from "./Cover";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
 /** Tilt the cover toward the pointer and move its light sheen, like a holo card. */
-function tilt(e: React.PointerEvent<HTMLElement>) {
-  if (e.pointerType !== "mouse" || prefersReducedMotion()) return;
-  const card = e.currentTarget;
-  const cover = card.querySelector<HTMLElement>(".cover");
-  if (!cover) return;
-  const box = cover.getBoundingClientRect();
-  const x = (e.clientX - box.left) / box.width;
-  const y = (e.clientY - box.top) / box.height;
-  card.style.setProperty("--rx", `${(0.5 - y) * 10}deg`);
-  card.style.setProperty("--ry", `${(x - 0.5) * 12}deg`);
-  card.style.setProperty("--mx", `${x * 100}%`);
-  card.style.setProperty("--my", `${y * 100}%`);
-}
-function untilt(e: React.PointerEvent<HTMLElement>) {
-  for (const name of ["--rx", "--ry", "--mx", "--my"])
-    e.currentTarget.style.removeProperty(name);
+function useTilt(reduced: boolean) {
+  const frame = useRef<number | undefined>(undefined);
+  const pointer = useRef<{ card: HTMLElement; x: number; y: number } | null>(
+    null,
+  );
+  const reset = useCallback(() => {
+    if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+    frame.current = undefined;
+    for (const name of ["--rx", "--ry", "--mx", "--my"])
+      pointer.current?.card.style.removeProperty(name);
+    pointer.current = null;
+  }, []);
+  useEffect(() => reset, [reduced, reset]);
+  return {
+    onPointerMove: (event: React.PointerEvent<HTMLElement>) => {
+      if (event.pointerType !== "mouse" || reduced) return;
+      pointer.current = {
+        card: event.currentTarget,
+        x: event.clientX,
+        y: event.clientY,
+      };
+      if (frame.current !== undefined) return;
+      // Fast mice emit several events per display frame. Measure and paint only
+      // the latest position, without repeatedly forcing layout between writes.
+      frame.current = requestAnimationFrame(() => {
+        frame.current = undefined;
+        const position = pointer.current;
+        const cover = position?.card.querySelector<HTMLElement>(".cover");
+        if (!position || !cover) return;
+        const box = cover.getBoundingClientRect();
+        if (!box.width || !box.height) return;
+        const x = (position.x - box.left) / box.width;
+        const y = (position.y - box.top) / box.height;
+        const { style } = position.card;
+        style.setProperty("--rx", `${(0.5 - y) * 10}deg`);
+        style.setProperty("--ry", `${(x - 0.5) * 12}deg`);
+        style.setProperty("--mx", `${x * 100}%`);
+        style.setProperty("--my", `${y * 100}%`);
+      });
+    },
+    onPointerLeave: reset,
+    onPointerCancel: reset,
+  };
 }
 
 export function Card({
@@ -42,6 +70,8 @@ export function Card({
   index?: number;
 }) {
   const activate = () => onOpen(vn);
+  const reduced = useReducedMotion();
+  const tilt = useTilt(reduced);
   const tint = useCoverTint(vn.imageUrl);
   const flight = useFlightLayer<HTMLDivElement>();
   const year = vn.released?.slice(0, 4);
@@ -55,20 +85,19 @@ export function Card({
       aria-label={match != null ? `${vn.title}, ${match}% match` : vn.title}
       onClick={activate}
       onKeyDown={activateOnKey(activate)}
-      onPointerMove={tilt}
-      onPointerLeave={untilt}
+      {...tilt}
       // Transform strings run on the compositor; x/y would repaint every frame.
-      initial={{ opacity: 0, transform: "translateY(18px)" }}
+      initial={reduced ? false : { opacity: 0, transform: "translateY(18px)" }}
       animate={{ opacity: 1, transform: "translateY(0px)" }}
       transition={{
-        duration: 0.45,
+        duration: reduced ? 0 : 0.45,
         ease: easeOut,
-        delay: Math.min(index, 12) * 0.045,
+        delay: reduced ? 0 : Math.min(index, 12) * 0.045,
       }}
     >
       <m.div
         // The cover flies into the detail sheet; decorative, so off for reduced motion.
-        layoutId={prefersReducedMotion() ? undefined : `cover-${vn.id}`}
+        layoutId={reduced ? undefined : `cover-${vn.id}`}
         transition={{ layout: sheetTransition }}
         {...flight}
         className="card-cover"

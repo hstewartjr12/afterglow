@@ -91,6 +91,7 @@ function NavigationLinks({
   onNavigate: (view: View) => void;
   mobile?: boolean;
 }) {
+  const reduced = useReducedMotion();
   return views.map(({ view: v, label }, i) => (
     <button
       key={v}
@@ -103,8 +104,12 @@ function NavigationLinks({
       {view === v && !mobile && (
         <m.span
           className="nav-underline"
-          layoutId="nav-underline"
-          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+          layoutId={reduced ? undefined : "nav-underline"}
+          transition={
+            reduced
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 500, damping: 40 }
+          }
         />
       )}
     </button>

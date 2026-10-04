@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { parseDescription } from "../lib/format";
 
@@ -7,8 +7,12 @@ import { parseDescription } from "../lib/format";
  * small "Spoiler" pill that reveals just that passage; a header control
  * reveals or hides them all.
  */
-export function Synopsis({ description }: { description: string | null }) {
-  const parts = parseDescription(description);
+export const Synopsis = memo(function Synopsis({
+  description,
+}: {
+  description: string | null;
+}) {
+  const parts = useMemo(() => parseDescription(description), [description]);
   const spoilerCount = parts.filter((p) => p.spoiler).length;
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const hidden = spoilerCount - revealed.size;
@@ -69,4 +73,4 @@ export function Synopsis({ description }: { description: string | null }) {
       </p>
     </>
   );
-}
+});

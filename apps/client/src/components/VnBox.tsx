@@ -24,9 +24,17 @@ export function VnBox({
   const total = reasons.reduce((sum, r) => sum + r.length, 0);
   const key = reasons.join("\n");
   const [typed, setTyped] = useState({ key, count: reduced ? total : 0 });
-  const count = typed.key === key ? typed.count : reduced ? total : 0;
+  const count = reduced ? total : typed.key === key ? typed.count : 0;
   const done = count >= total;
   useEffect(() => {
+    if (reduced) {
+      setTyped((typed) =>
+        typed.key === key && typed.count === total
+          ? typed
+          : { key, count: total },
+      );
+      return;
+    }
     if (done || pending) return;
     const timer = setInterval(
       () =>
@@ -40,7 +48,7 @@ export function VnBox({
       TICK_MS,
     );
     return () => clearInterval(timer);
-  }, [done, key, total, pending]);
+  }, [done, key, total, pending, reduced]);
   let remaining = count;
   return (
     <figure

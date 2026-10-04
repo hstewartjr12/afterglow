@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
@@ -33,9 +33,9 @@ import { TagChoicePopover } from "./TagChoicePopover";
 import { Synopsis } from "./Synopsis";
 import {
   easeOut,
-  prefersReducedMotion,
   sheetTransition,
   useFlightLayer,
+  useReducedMotion,
 } from "../lib/motion";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
@@ -71,7 +71,9 @@ const TAG_PREVIEW = 18;
  * sits in different page coordinates than the card, so it lets go of the card.
  */
 function DetailCover({ vn }: { vn: VnDetail }) {
-  const shared = !useOverlayIsPage() && !prefersReducedMotion();
+  const page = useOverlayIsPage();
+  const reduced = useReducedMotion();
+  const shared = !page && !reduced;
   const flight = useFlightLayer<HTMLDivElement>();
   return (
     <m.div
@@ -97,14 +99,15 @@ export function Detail({
   const modalRef = useModal<HTMLElement>({ lockScroll: false });
   const qc = useQueryClient();
   const toast = useToast();
+  const reduced = useReducedMotion();
   const detail = useQuery({
     queryKey: ["detail", vn.id],
-    queryFn: () => api.detail(vn.id),
+    queryFn: ({ signal }) => api.detail(vn.id, signal),
     placeholderData: vn as VnDetail,
   });
   const fit = useQuery({
     queryKey: ["recommendation", vn.id],
-    queryFn: () => api.recommendation(vn.id),
+    queryFn: ({ signal }) => api.recommendation(vn.id, signal),
   });
   const lib = useQuery({ queryKey: ["library"], queryFn: api.library });
   const pref = useQuery({
@@ -212,7 +215,18 @@ export function Detail({
     return () => document.removeEventListener("keydown", handleEscape, true);
   }, [activeTag]);
 
-  const visibleTags = d.tags.filter((t) => t.spoiler <= spoilerLevel);
+  const visibleTags = useMemo(
+    () => d.tags.filter((t) => t.spoiler <= spoilerLevel),
+    [d.tags, spoilerLevel],
+  );
+  const preferenceById = useMemo(() => {
+    const weights = new Map<string, number>();
+    for (const tag of pref.data?.tagPreferences ?? []) {
+      // Preserve the first matching preference, as Array.find did.
+      if (!weights.has(tag.id)) weights.set(tag.id, tag.weight);
+    }
+    return weights;
+  }, [pref.data?.tagPreferences]);
   const hiddenTags = d.tags.length - visibleTags.length;
   const setSpoilers = (level: 0 | 1 | 2) => {
     setSpoilerLevel(level);
@@ -233,7 +247,7 @@ export function Detail({
         : [...rest, { id: tag.id, name: tag.name, weight }],
     });
     setActiveTag(null);
-    if (weight > 1 && !clearing) {
+    if (weight > 1 && !clearing && !reduced) {
       setBurst(tag.id);
       setTimeout(() => setBurst((b) => (b === tag.id ? null : b)), 900);
     }
@@ -279,9 +293,9 @@ export function Detail({
         className="sheet detail-sheet tinted"
         style={tintStyle(tint)}
         // A transform string rather than y, so the browser's compositor runs it.
-        initial={{ transform: "translateY(24px)" }}
+        initial={reduced ? false : { transform: "translateY(24px)" }}
         animate={{ transform: "translateY(0px)" }}
-        transition={sheetTransition}
+        transition={reduced ? { duration: 0 } : sheetTransition}
         role="dialog"
         aria-modal="true"
         aria-label={d.title}
@@ -344,10 +358,14 @@ export function Detail({
             />
           )}
           <m.section
-            layout="position"
-            initial={{ opacity: 0, y: 10 }}
+            layout={reduced ? false : "position"}
+            initial={reduced ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: easeOut, delay: 0.08 }}
+            transition={{
+              duration: reduced ? 0 : 0.35,
+              ease: easeOut,
+              delay: reduced ? 0 : 0.08,
+            }}
             className="synopsis"
             aria-labelledby="synopsis-title"
             aria-busy={synopsisLoading}
@@ -360,7 +378,10 @@ export function Detail({
                 <m.div
                   key="loading"
                   className="text-skeleton"
-                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                  exit={{
+                    opacity: 0,
+                    transition: { duration: reduced ? 0 : 0.15 },
+                  }}
                 >
                   <span className="visually-hidden">Loading synopsis…</span>
                   <i />
@@ -371,9 +392,9 @@ export function Detail({
               ) : (
                 <m.div
                   key="text"
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: easeOut }}
+                  transition={{ duration: reduced ? 0 : 0.4, ease: easeOut }}
                 >
                   <Synopsis description={d.description} />
                 </m.div>
@@ -381,10 +402,14 @@ export function Detail({
             </AnimatePresence>
           </m.section>
           <m.section
-            layout="position"
-            initial={{ opacity: 0, y: 10 }}
+            layout={reduced ? false : "position"}
+            initial={reduced ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: easeOut, delay: 0.14 }}
+            transition={{
+              duration: reduced ? 0 : 0.35,
+              ease: easeOut,
+              delay: reduced ? 0 : 0.14,
+            }}
             className="fit"
             aria-labelledby="fit-title"
           >
@@ -402,10 +427,14 @@ export function Detail({
             />
           </m.section>
           <m.section
-            layout="position"
-            initial={{ opacity: 0, y: 10 }}
+            layout={reduced ? false : "position"}
+            initial={reduced ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: easeOut, delay: 0.2 }}
+            transition={{
+              duration: reduced ? 0 : 0.35,
+              ease: easeOut,
+              delay: reduced ? 0 : 0.2,
+            }}
             className="detail-tags"
             aria-labelledby="tags-title"
           >
@@ -447,10 +476,7 @@ export function Detail({
               {visibleTags
                 .slice(0, allTags ? visibleTags.length : TAG_PREVIEW)
                 .map((t) => {
-                  const choice = weightLabel(
-                    pref.data?.tagPreferences.find((x) => x.id === t.id)
-                      ?.weight,
-                  );
+                  const choice = weightLabel(preferenceById.get(t.id));
                   const isOpen = activeTag?.id === t.id;
                   return (
                     <div
@@ -517,9 +543,7 @@ export function Detail({
                 (() => {
                   const tag = d.tags.find((t) => t.id === activeTag.id);
                   if (!tag) return null;
-                  const choice = pref.data?.tagPreferences.find(
-                    (x) => x.id === tag.id,
-                  )?.weight;
+                  const choice = preferenceById.get(tag.id);
                   return (
                     <TagChoicePopover
                       anchor={activeTag.anchor}
@@ -546,9 +570,15 @@ export function Detail({
         <m.aside
           className="tracker"
           aria-labelledby="tracker-title"
-          initial={{ opacity: 0, transform: "translateX(12px)" }}
+          initial={
+            reduced ? false : { opacity: 0, transform: "translateX(12px)" }
+          }
           animate={{ opacity: 1, transform: "translateX(0px)" }}
-          transition={{ duration: 0.35, ease: easeOut, delay: 0.12 }}
+          transition={{
+            duration: reduced ? 0 : 0.35,
+            ease: easeOut,
+            delay: reduced ? 0 : 0.12,
+          }}
         >
           <div className="tracker-head">
             <h2 id="tracker-title">Your tracker</h2>

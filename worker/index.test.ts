@@ -73,6 +73,42 @@ describe("public catalogue server", () => {
     rejectFirst(new Error("Originating request canceled"));
     expect((await first).status).toBe(502);
   });
+  it("loads themed and popular candidates together while preserving merge order", async () => {
+    const complete: (() => void)[] = [];
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((_url, options) => {
+        const themed = JSON.parse(options?.body as string).results === 60;
+        return new Promise<Response>((resolve) => {
+          complete.push(() =>
+            resolve(
+              Response.json({
+                results: themed
+                  ? [
+                      { id: "v201", title: "Themed", tags: [] },
+                      { id: "v202", title: "Shared themed", tags: [] },
+                    ]
+                  : [
+                      { id: "v202", title: "Shared popular", tags: [] },
+                      { id: "v203", title: "Popular", tags: [] },
+                    ],
+              }),
+            ),
+          );
+        });
+      });
+    const candidates = request("/api/vndb/candidates?tags=g220223");
+    try {
+      await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(2));
+    } finally {
+      complete.forEach((resolve) => resolve());
+    }
+    const response = await candidates;
+    expect(response.status).toBe(200);
+    expect(
+      (await response.json()).map((vn: { title: string }) => vn.title),
+    ).toEqual(["Themed", "Shared popular", "Popular"]);
+  });
   it("reports upstream rate limiting clearly", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("busy", { status: 429 }),

@@ -56,13 +56,15 @@ export function Discover({
     // Keep the current page on screen while the next one loads.
     placeholderData: keepPreviousData,
   });
+  const results = found.data?.results;
+  const candidateIds = useMemo(
+    () => results?.map((v) => v.id).join(","),
+    [results],
+  );
   const scored = useQuery({
-    queryKey: [
-      "candidate-scores",
-      found.data?.results.map((v) => v.id).join(","),
-    ],
-    queryFn: () => api.scoreCandidates(found.data!.results),
-    enabled: Boolean(found.data?.results.length),
+    queryKey: ["candidate-scores", candidateIds],
+    queryFn: ({ signal }) => api.scoreCandidates(results!, signal),
+    enabled: Boolean(results?.length),
   });
   const scoreById = useMemo(
     () => new Map(scored.data?.map((r) => [r.vn.id, r.matchPercent]) ?? []),
@@ -114,7 +116,6 @@ export function Discover({
     key: "platform" | "length" | "year" | "rating";
     label: string;
   }[];
-  const results = found.data?.results ?? [];
   return (
     <main className="page discover">
       <section className="page-head">
@@ -217,7 +218,7 @@ export function Discover({
             ? "Searching…"
             : found.data?.count != null
               ? `${found.data.count.toLocaleString()} ${found.data.count === 1 ? "story" : "stories"}`
-              : `${results.length} shown`}
+              : `${results?.length ?? 0} shown`}
         </p>
         {chips.length > 0 && (
           <ul className="chips active-filters" aria-label="Active filters">
@@ -266,7 +267,7 @@ export function Discover({
         />
       ) : found.isLoading ? (
         <Loading />
-      ) : results.length ? (
+      ) : results?.length ? (
         <div
           className={`catalogue ${found.isPlaceholderData ? "is-refreshing" : ""}`}
           aria-busy={found.isFetching}

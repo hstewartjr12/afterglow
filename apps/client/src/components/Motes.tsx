@@ -25,11 +25,16 @@ export function Motes({ count = 22 }: { count?: number }) {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || reduced) return;
     let frame = 0;
-    let visible = true;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let intersecting = false;
+    let visible = false;
+    let dpr = 1;
     const resize = () => {
-      canvas.width = canvas.clientWidth * dpr;
-      canvas.height = canvas.clientHeight * dpr;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.round(canvas.clientWidth * dpr);
+      const height = Math.round(canvas.clientHeight * dpr);
+      // Assigning either dimension clears the bitmap and resets the context.
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
     };
     resize();
     const motes: Mote[] = Array.from({ length: count }, () => ({
@@ -116,20 +121,33 @@ export function Motes({ count = 22 }: { count?: number }) {
       }
       if (visible) frame = requestAnimationFrame(draw);
     };
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting && !document.hidden;
+    const updateVisibility = () => {
+      const next = intersecting && !document.hidden;
+      if (next === visible) return;
+      visible = next;
       cancelAnimationFrame(frame);
       if (visible) {
         last = performance.now();
         frame = requestAnimationFrame(draw);
       }
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      intersecting = entry.isIntersecting;
+      updateVisibility();
     });
     observer.observe(canvas);
+    // The hero can resize when its content loads, without a window resize.
+    const resizeObserver =
+      typeof ResizeObserver === "function" ? new ResizeObserver(resize) : null;
+    resizeObserver?.observe(canvas);
     window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", updateVisibility);
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", updateVisibility);
     };
   }, [count, reduced]);
   if (reduced) return null;

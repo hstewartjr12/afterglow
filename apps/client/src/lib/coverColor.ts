@@ -147,6 +147,7 @@ export function sampleTint(img: CanvasImageSource): CoverTint | null {
 }
 
 const waiting = new Map<string, Set<(tint: CoverTint | null) => void>>();
+const sampling = new Map<string, Set<HTMLImageElement>>();
 const idle = (run: () => void) =>
   "requestIdleCallback" in window
     ? requestIdleCallback(run, { timeout: 1000 })
@@ -185,13 +186,35 @@ export function sampleCover(url: string, img: HTMLImageElement) {
           !img.naturalWidth
         )
           return;
+        const copies = sampling.get(url);
+        if (copies) {
+          // Keep other valid copies available if the first image is reused
+          // before a failed bitmap resize falls back to its pixels.
+          copies.add(img);
+          return;
+        }
+        sampling.set(url, new Set([img]));
         void shrink(img).then((small) => {
-          if (cache.has(url)) return;
-          const tint = sampleTint(small);
-          cache.set(url, tint);
-          persist();
-          waiting.get(url)?.forEach((notify) => notify(tint));
-          waiting.delete(url);
+          try {
+            // A failed bitmap resize falls back to the live image, which React
+            // may have reused while the resize was in flight.
+            if (cache.has(url) || (small === img && img.src !== source)) return;
+            const tint = sampleTint(small);
+            cache.set(url, tint);
+            persist();
+            waiting.get(url)?.forEach((notify) => notify(tint));
+            waiting.delete(url);
+          } finally {
+            const retry = sampling.get(url);
+            sampling.delete(url);
+            // Release the decoded pixel buffer after sampling, including when
+            // another copy has already populated the cache.
+            if (small !== img && "close" in small) small.close();
+            if (!cache.has(url))
+              retry?.forEach((copy) => {
+                if (copy !== img) sampleCover(url, copy);
+              });
+          }
         });
       }),
     () => {},

@@ -259,11 +259,15 @@ export async function personalizedVns(
     "or",
     ...tagIds.slice(0, 8).map((id) => ["tag", "=", [id, spoilerLevel, 0.5]]),
   ];
-  const themed = await query(
-    `personal3:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`,
-    { filters, sort: "rating", reverse: true, results: 60 },
-  );
-  const popular = await popularVns();
+  const [themed, popular] = await Promise.all([
+    query(`personal3:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`, {
+      filters,
+      sort: "rating",
+      reverse: true,
+      results: 60,
+    }),
+    popularVns(),
+  ]);
   return [
     ...new Map(
       [...themed.results, ...popular.results].map((v) => [v.id, v]),

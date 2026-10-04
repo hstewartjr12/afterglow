@@ -28,7 +28,7 @@ export const api = {
       signal,
     );
   },
-  tags: (q: string, page = 1, category = "") =>
+  tags: (q: string, page = 1, category = "", signal?: AbortSignal) =>
     request<{
       results: VndbTag[];
       recordCount: number;
@@ -37,8 +37,10 @@ export const api = {
       more?: boolean;
     }>(
       `/api/vndb/tags?q=${encodeURIComponent(q)}&page=${page}${category ? `&category=${category}` : ""}`,
+      signal,
     ),
-  detail: (id: string) => request<VnDetail>(`/api/vndb/vn/${id}`),
+  detail: (id: string, signal?: AbortSignal) =>
+    request<VnDetail>(`/api/vndb/vn/${id}`, signal),
   library: storage.library,
   saveLibrary: storage.saveLibrary,
   removeLibrary: storage.removeLibrary,
@@ -63,16 +65,18 @@ export const api = {
     );
     return rankRecommendations(candidates, library, prefs, true, 24);
   },
-  scoreCandidates: async (vns: VnSummary[]) => {
+  scoreCandidates: async (vns: VnSummary[], signal?: AbortSignal) => {
+    signal?.throwIfAborted();
     const [library, prefs] = await Promise.all([
       storage.library(),
       storage.preferences(),
     ]);
+    signal?.throwIfAborted();
     return rankRecommendations(vns, library, prefs, false, vns.length);
   },
-  recommendation: async (id: string) => {
+  recommendation: async (id: string, signal?: AbortSignal) => {
     const [vn, library, prefs] = await Promise.all([
-      request<VnDetail>(`/api/vndb/vn/${id}`),
+      request<VnDetail>(`/api/vndb/vn/${id}`, signal),
       storage.library(),
       storage.preferences(),
     ]);
