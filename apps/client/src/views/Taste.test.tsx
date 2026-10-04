@@ -89,9 +89,11 @@ describe("restored taste weights", () => {
     expect(
       await screen.findByText("Newly restored favorite theme"),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText("Restored strong preference"),
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Restored strong preference"),
+      ).not.toBeInTheDocument(),
+    );
     expect(screen.getByRole("checkbox", { name: "Long" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Short" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Linux" })).toBeChecked();
