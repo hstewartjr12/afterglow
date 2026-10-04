@@ -37,7 +37,24 @@ function mapDetail(raw: Raw): VnDetail {
   };
 }
 type VnPage<T> = { results: T[]; more?: boolean; count?: number };
+// Share catalogue and tag work until it has been persisted in the disk cache.
+const inFlight = new Map<string, Promise<unknown>>();
 async function cachedFetch<T>(
+  key: string,
+  ttl: number,
+  request: () => Promise<T>,
+): Promise<T> {
+  const existing = inFlight.get(key);
+  if (existing) return existing as Promise<T>;
+  const pending = loadCached(key, ttl, request);
+  inFlight.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    inFlight.delete(key);
+  }
+}
+async function loadCached<T>(
   key: string,
   ttl: number,
   request: () => Promise<T>,
@@ -112,9 +129,6 @@ async function loadQuery<T>(
     return { ...raw, results: raw.results.map(mapResult) };
   });
 }
-// Detail and match requests often ask for the same VN concurrently.
-// Share that work until the result is persisted in the existing disk cache.
-const inFlight = new Map<string, Promise<VnPage<unknown>>>();
 async function query(key: string, body: Raw): Promise<VnPage<VnSummary>>;
 async function query(
   key: string,
@@ -122,17 +136,9 @@ async function query(
   detail: true,
 ): Promise<VnPage<VnDetail>>;
 async function query(key: string, body: Raw, detail = false) {
-  const existing = inFlight.get(key);
-  if (existing) return existing;
-  const pending = detail
+  return detail
     ? loadQuery(key, body, detailFields, mapDetail)
     : loadQuery(key, body, summaryFields, mapSummary);
-  inFlight.set(key, pending);
-  try {
-    return await pending;
-  } finally {
-    inFlight.delete(key);
-  }
 }
 
 export type VnSearchOptions = {
@@ -256,11 +262,15 @@ export async function personalizedVns(
     "or",
     ...tagIds.slice(0, 8).map((id) => ["tag", "=", [id, spoilerLevel, 0.5]]),
   ];
-  const themed = await query(
-    `personal3:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`,
-    { filters, sort: "rating", reverse: true, results: 60 },
-  );
-  const popular = await popularVns();
+  const [themed, popular] = await Promise.all([
+    query(`personal3:${spoilerLevel}:${tagIds.slice(0, 8).sort().join(",")}`, {
+      filters,
+      sort: "rating",
+      reverse: true,
+      results: 60,
+    }),
+    popularVns(),
+  ]);
   return [
     ...new Map(
       [...themed.results, ...popular.results].map((v) => [v.id, v]),

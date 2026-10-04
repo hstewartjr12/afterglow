@@ -3,6 +3,7 @@ import * as m from "motion/react-m";
 import { createPortal } from "react-dom";
 import type { VnSummary } from "@afterglow/shared";
 import { tagWeights } from "../lib/format";
+import { useReducedMotion } from "../lib/motion";
 
 // Phrased as a visual novel choice, one per line.
 const choiceText: Record<number, string> = {
@@ -26,8 +27,13 @@ export function TagChoicePopover({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const scheduleRef = useRef<(() => void) | null>(null);
   const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
   useLayoutEffect(() => {
+    let frame: number | undefined;
     const place = () => {
       const popover = ref.current;
       if (!popover) return;
@@ -36,7 +42,7 @@ export function TagChoicePopover({
         .closest(".detail-tag")
         ?.parentElement?.getBoundingClientRect();
       if (list && (a.bottom < list.top || a.top > list.bottom)) {
-        onClose();
+        closeRef.current();
         return;
       }
       const p = popover.getBoundingClientRect();
@@ -49,16 +55,37 @@ export function TagChoicePopover({
         below + p.height <= window.innerHeight - 8
           ? below
           : Math.max(8, a.top - p.height - 6);
-      setPos({ left, top, ready: true });
+      setPos((previous) =>
+        previous.ready && previous.left === left && previous.top === top
+          ? previous
+          : { left, top, ready: true },
+      );
     };
+    // Scroll events can arrive faster than a display refresh. Read layout only
+    // once per frame, while the initial placement stays synchronous.
+    const schedule = () => {
+      if (frame !== undefined) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        place();
+      });
+    };
+    scheduleRef.current = schedule;
     place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
     return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      scheduleRef.current = null;
     };
-  }, [anchor, onClose]);
+  }, [anchor]);
+  // Parent updates can move the anchor (for example, when the synopsis loads).
+  // Preserve that positioning check without replacing the event listeners.
+  useLayoutEffect(() => {
+    scheduleRef.current?.();
+  }, [onClose, tag.name, choice]);
   return createPortal(
     <m.div
       ref={ref}
@@ -70,9 +97,14 @@ export function TagChoicePopover({
         top: pos.top,
         visibility: pos.ready ? "visible" : "hidden",
       }}
-      initial={{ opacity: 0, y: -4 }}
+      initial={reduced ? false : { opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
+      exit={{
+        opacity: 0,
+        y: reduced ? 0 : -4,
+        transition: { duration: reduced ? 0 : 0.1 },
+      }}
+      transition={reduced ? { duration: 0 } : undefined}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <strong className="tag-action-name">{tag.name}</strong>
@@ -86,9 +118,12 @@ export function TagChoicePopover({
             aria-pressed={choice === w}
             className={`choice ${choice === w ? "selected" : ""}`}
             onClick={() => onChoose(w)}
-            initial={{ opacity: 0, x: -10 }}
+            initial={reduced ? false : { opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.04 * i, duration: 0.2 }}
+            transition={{
+              delay: reduced ? 0 : 0.04 * i,
+              duration: reduced ? 0 : 0.2,
+            }}
           >
             {w > 1 ? "♥ " : ""}
             {choiceText[w]}

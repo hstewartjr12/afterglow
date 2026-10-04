@@ -46,12 +46,9 @@ function learnedTaste(library: LibraryEntry[], includeSpoilers: boolean) {
   return learned;
 }
 
-function explicitFit(vn: VnSummary, prefs: Preferences) {
+function explicitFit(eligible: VnSummary["tags"], prefs: Preferences) {
   if (!prefs.tagPreferences.length)
     return { score: 0.5, positive: [] as string[], negative: [] as string[] };
-  const eligible = vn.tags.filter(
-    (tag) => prefs.useSpoilerTagsInRecommendations || tag.spoiler === 0,
-  );
   const tags = new Map(eligible.map((tag) => [tag.id, tag]));
   let positiveTotal = 0,
     positiveMatch = 0,
@@ -82,21 +79,15 @@ function explicitFit(vn: VnSummary, prefs: Preferences) {
 }
 
 function learnedFit(
-  vn: VnSummary,
+  tags: VnSummary["tags"],
   learned: Map<string, { name: string; weight: number }>,
-  includeSpoilers: boolean,
+  scale: number,
 ) {
   if (!learned.size) return { score: 0.5, matches: [] as string[] };
-  const scale = Math.max(
-    ...[...learned.values()].map((x) => Math.abs(x.weight)),
-    1,
-  );
   let signed = 0,
     weight = 0;
   const matches: { name: string; value: number }[] = [];
-  for (const tag of vn.tags.filter(
-    (tag) => includeSpoilers || tag.spoiler === 0,
-  )) {
+  for (const tag of tags) {
     const value = (learned.get(tag.id)?.weight ?? 0) / scale;
     if (!value) continue;
     const relevance = clamp(tag.rating / 3);
@@ -139,15 +130,7 @@ function qualityFit(vn: VnSummary) {
   return rating * 0.8 + popularity * 0.2;
 }
 
-function noveltyFit(
-  vn: VnSummary,
-  learned: Map<string, { name: string; weight: number }>,
-  includeSpoilers: boolean,
-) {
-  const tags = vn.tags.filter((tag) => includeSpoilers || tag.spoiler === 0);
-  const positive = new Set(
-    [...learned].filter(([, x]) => x.weight > 0).map(([id]) => id),
-  );
+function noveltyFit(tags: VnSummary["tags"], positive: Set<string>) {
   if (!positive.size || !tags.length) return 0.5;
   const familiar =
     tags.reduce(
@@ -177,18 +160,28 @@ export function rankRecommendations(
   const owned = new Set(library.map((x) => x.vndbId));
   const includeSpoilers = prefs.useSpoilerTagsInRecommendations;
   const learned = learnedTaste(library, includeSpoilers);
+  // These depend only on the library, so calculate them once for the batch.
+  let learnedScale = 1;
+  const familiarTags = new Set<string>();
+  for (const [id, { weight }] of learned) {
+    learnedScale = Math.max(learnedScale, Math.abs(weight));
+    if (weight > 0) familiarTags.add(id);
+  }
   const confidence = profileConfidence(prefs, library);
   return candidates
     .filter((v) => !excludeOwned || !owned.has(v.id))
     .map((v) => {
-      const explicit = explicitFit(v, prefs);
-      const learnedResult = learnedFit(v, learned, includeSpoilers);
+      const tags = includeSpoilers
+        ? v.tags
+        : v.tags.filter((tag) => tag.spoiler === 0);
+      const explicit = explicitFit(tags, prefs);
+      const learnedResult = learnedFit(tags, learned, learnedScale);
       const components: Components = {
         explicit: explicit.score,
         learned: learnedResult.score,
         constraints: constraintFit(v, prefs),
         quality: qualityFit(v),
-        novelty: noveltyFit(v, learned, includeSpoilers),
+        novelty: noveltyFit(tags, familiarTags),
       };
       const raw =
         (components.explicit * 0.55 +

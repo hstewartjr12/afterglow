@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
@@ -9,6 +9,7 @@ import { api } from "../api";
 import { invalidateMatches } from "../queries";
 import { lengths, plural, platformName, tagWeights } from "../lib/format";
 import { Loading, ErrorState } from "../components/status";
+import { useReducedMotion } from "../lib/motion";
 import { TagIndex } from "./TagIndex";
 // `completed` only records that a profile was ever saved, so it never makes a draft dirty.
 const profileKey = (p: Preferences) =>
@@ -19,6 +20,7 @@ export function Taste({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const qc = useQueryClient();
+  const reduced = useReducedMotion();
   const pref = useQuery({
     queryKey: ["preferences"],
     queryFn: api.preferences,
@@ -37,7 +39,8 @@ export function Taste({
       setBaseline(profileKey(pref.data));
     }
   }, [pref.data, draft]);
-  const dirty = Boolean(draft && baseline && profileKey(draft) !== baseline);
+  const draftKey = useMemo(() => draft && profileKey(draft), [draft]);
+  const dirty = Boolean(draftKey && baseline && draftKey !== baseline);
   useEffect(() => {
     onDirtyChange?.(dirty);
     if (!dirty) return;
@@ -49,7 +52,7 @@ export function Taste({
   const save = useMutation({
     mutationFn: api.savePreferences,
     onSuccess: (_data, variables) => {
-      setSavedJson(JSON.stringify(variables));
+      setSavedJson(profileKey(variables));
       setBaseline(profileKey(variables));
       invalidateMatches(qc);
       qc.invalidateQueries({ queryKey: ["preferences"] });
@@ -149,11 +152,11 @@ export function Taste({
                   {tags.map((t) => (
                     <m.li
                       key={t.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      layout={!reduced}
+                      initial={reduced ? false : { opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.2 }}
+                      exit={{ opacity: 0, scale: reduced ? 1 : 0.9 }}
+                      transition={{ duration: reduced ? 0 : 0.2 }}
                     >
                       <span className="chip preference-chip">
                         {t.name}
@@ -265,7 +268,7 @@ export function Taste({
         >
           {save.isPending
             ? "Saving…"
-            : savedJson === JSON.stringify({ ...draft, completed: true })
+            : savedJson === draftKey
               ? "Profile saved"
               : "Save taste profile"}
           <ArrowRight aria-hidden="true" />

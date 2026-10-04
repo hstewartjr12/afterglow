@@ -7,7 +7,7 @@ import type { VnSummary } from "@afterglow/shared";
 import { libraryStatuses } from "@afterglow/shared/constants";
 import { api } from "../api";
 import { activateOnKey, altTitle, plural, statusLabel } from "../lib/format";
-import { easeOut } from "../lib/motion";
+import { easeOut, useReducedMotion } from "../lib/motion";
 import { Cover } from "../components/Cover";
 import { TintScope } from "../components/TintScope";
 import { Loading, ErrorState } from "../components/status";
@@ -23,6 +23,7 @@ export function LibraryView({
   const [term, setTerm] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sort, setSort] = useState("updated");
+  const reduced = useReducedMotion();
   const shown = useMemo(() => {
     const query = term.trim().toLocaleLowerCase();
     return (lib.data ?? [])
@@ -188,20 +189,23 @@ export function LibraryView({
                 const alt = altTitle(item.vn);
                 return (
                   <m.article
-                    layout="position"
+                    layout={reduced ? false : "position"}
                     key={item.id}
                     role="button"
                     tabIndex={0}
                     className="ledger-row"
                     onClick={() => open(item.vn)}
                     onKeyDown={activateOnKey(() => open(item.vn))}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={reduced ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                    exit={{
+                      opacity: 0,
+                      transition: { duration: reduced ? 0 : 0.15 },
+                    }}
                     transition={{
-                      duration: 0.35,
+                      duration: reduced ? 0 : 0.35,
                       ease: easeOut,
-                      delay: Math.min(index, 10) * 0.03,
+                      delay: reduced ? 0 : Math.min(index, 10) * 0.03,
                     }}
                   >
                     <TintScope url={item.vn.imageUrl}>

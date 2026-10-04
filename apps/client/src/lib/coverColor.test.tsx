@@ -81,3 +81,71 @@ it("samples after decoding, during idle time, and clears the previous tint on a 
   rerender({ url: "/unseen-cover.jpg" });
   expect(result.current).toBeNull();
 });
+
+it("resizes each cover once when several copies load together and releases the bitmap", async () => {
+  const url = "/shared-bitmap-cover.jpg";
+  const close = vi.fn();
+  const bitmap = { close };
+  let finish!: (value: ImageBitmap) => void;
+  const resize = vi.fn(
+    () => new Promise<ImageBitmap>((resolve) => (finish = resolve)),
+  );
+  vi.stubGlobal("createImageBitmap", resize);
+  const { result } = renderHook(() => useCoverTint(url));
+  sampleCover(url, image(url));
+  sampleCover(url, image(url));
+  await act(flushIdle);
+  expect(resize).toHaveBeenCalledTimes(1);
+  expect(draw).not.toHaveBeenCalled();
+  await act(async () => finish(bitmap as unknown as ImageBitmap));
+  expect(draw).toHaveBeenCalledTimes(1);
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(result.current).not.toBeNull();
+});
+
+it("does not sample a reused image after a failed bitmap resize", async () => {
+  const url = "/failed-resize-cover.jpg";
+  const img = image(url);
+  let fail!: (error: Error) => void;
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn(
+      () => new Promise<ImageBitmap>((_resolve, reject) => (fail = reject)),
+    ),
+  );
+  const { result } = renderHook(() => useCoverTint(url));
+  sampleCover(url, img);
+  await act(flushIdle);
+  img.src = "/next-cover.jpg";
+  await act(async () => fail(new Error("Resize unavailable")));
+  expect(draw).not.toHaveBeenCalled();
+  expect(result.current).toBeNull();
+  // A canceled attempt leaves the cover available for another valid sample.
+  vi.stubGlobal("createImageBitmap", undefined);
+  sampleCover(url, image(url));
+  await act(flushIdle);
+  expect(result.current).not.toBeNull();
+});
+
+it("uses another loaded copy if the shared sampling attempt loses its source", async () => {
+  const url = "/shared-retry-cover.jpg";
+  const img = image(url);
+  let fail!: (error: Error) => void;
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn(
+      () => new Promise<ImageBitmap>((_resolve, reject) => (fail = reject)),
+    ),
+  );
+  const { result } = renderHook(() => useCoverTint(url));
+  sampleCover(url, img);
+  sampleCover(url, image(url));
+  sampleCover(url, img);
+  await act(flushIdle);
+  img.src = "/reused-cover.jpg";
+  vi.stubGlobal("createImageBitmap", undefined);
+  await act(async () => fail(new Error("Resize unavailable")));
+  await act(flushIdle);
+  expect(draw).toHaveBeenCalledTimes(1);
+  expect(result.current).not.toBeNull();
+});

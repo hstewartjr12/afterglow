@@ -187,4 +187,82 @@ describe("rankRecommendations", () => {
       privateResults.find((x) => x.vn.id === "v1")!.reasons.join(" "),
     ).not.toContain("Mystery");
   });
+
+  it.each([
+    [false, 64.23884930837862],
+    [true, 67.20364097504529],
+  ])(
+    "preserves mixed-profile scores, reasons, and ties with spoilers=%s",
+    (includeSpoilers, topScore) => {
+      const candidates = [
+        vn("v1", [
+          { id: "g1", name: "Mystery", rating: 1.5 },
+          { id: "g2", name: "Romance", rating: 1 },
+          { id: "g4", name: "Hidden", spoiler: 2 },
+        ]),
+        vn("v2", [
+          { id: "g1", name: "Mystery", rating: 0.75 },
+          { id: "g3", name: "Gore", rating: 2 },
+        ]),
+        vn("v3", []),
+        vn("v4", []),
+        vn("v10", [{ id: "g1", name: "Mystery" }]),
+      ];
+      const library = [
+        entry(
+          vn("v10", [
+            { id: "g1", name: "Mystery", rating: 2 },
+            { id: "g2", name: "Romance", rating: 1 },
+            { id: "g4", name: "Hidden", spoiler: 2 },
+          ]),
+        ),
+        entry(vn("v11", [{ id: "g3", name: "Gore" }]), {
+          id: 2,
+          favorite: false,
+          status: "dropped",
+          personalRating: 2,
+        }),
+      ];
+      const ranked = rankRecommendations(
+        candidates,
+        library,
+        {
+          ...prefs,
+          tagPreferences: [
+            { id: "g1", name: "Mystery", weight: 3 },
+            { id: "g2", name: "Romance", weight: 1 },
+            { id: "g3", name: "Gore", weight: -2 },
+          ],
+          useSpoilerTagsInRecommendations: includeSpoilers,
+        },
+        true,
+        4,
+      );
+      expect(ranked.map((result) => result.vn.id)).toEqual([
+        "v1",
+        "v3",
+        "v4",
+        "v2",
+      ]);
+      expect(ranked.map((result) => result.score)).toEqual([
+        topScore,
+        54.02634930837862,
+        54.02634930837862,
+        36.63541180837863,
+      ]);
+      expect(ranked[0].reasons).toEqual([
+        "Matches Mystery and Romance",
+        "Echoes themes from your favorites and ratings: Mystery, Romance",
+        "Fits your preferred reading length",
+      ]);
+      expect(ranked.at(-1)!.reasons).toEqual([
+        "Matches Mystery",
+        "Includes a theme you avoid: Gore",
+        "Echoes themes from your favorites and ratings: Mystery",
+      ]);
+      expect(
+        ranked.some((result) => result.reasons.join(" ").includes("Hidden")),
+      ).toBe(false);
+    },
+  );
 });

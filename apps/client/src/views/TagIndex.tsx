@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import * as m from "motion/react-m";
 import { Search, X } from "lucide-react";
@@ -8,6 +8,7 @@ import { useModal } from "../useModal";
 import { PageOverlay } from "../components/PageOverlay";
 import { plural, tagWeights, weightLabel } from "../lib/format";
 import { ErrorState } from "../components/status";
+import { useReducedMotion } from "../lib/motion";
 
 const categories = [
   { id: "", label: "All categories" },
@@ -36,6 +37,7 @@ export function TagIndex({
   focusWeight?: number;
 }) {
   const modalRef = useModal<HTMLElement>({ lockScroll: false });
+  const reduced = useReducedMotion();
   const [term, setTerm] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -49,7 +51,7 @@ export function TagIndex({
   }, [term]);
   const tags = useQuery({
     queryKey: ["tags", q, page, category],
-    queryFn: () => api.tags(q, page, category),
+    queryFn: ({ signal }) => api.tags(q, page, category, signal),
     placeholderData: keepPreviousData,
   });
   const focus = weightLabel(focusWeight);
@@ -58,14 +60,22 @@ export function TagIndex({
     ? [focus, ...tagWeights.filter((w) => w !== focus)]
     : tagWeights;
   const currentPage = tags.data?.page ?? page;
+  const selectedById = useMemo(() => {
+    const weights = new Map<string, number>();
+    for (const tag of selected) {
+      if (!weights.has(tag.id)) weights.set(tag.id, tag.weight);
+    }
+    return weights;
+  }, [selected]);
   return (
     <PageOverlay onDismiss={onClose}>
       <m.section
         ref={modalRef}
         tabIndex={-1}
         className="sheet tag-index"
-        initial={{ y: 24 }}
+        initial={reduced ? false : { y: 24 }}
         animate={{ y: 0 }}
+        transition={reduced ? { duration: 0 } : undefined}
         role="dialog"
         aria-modal="true"
         aria-label="VNDB tag index"
@@ -137,7 +147,7 @@ export function TagIndex({
             </p>
           ) : (
             tags.data.results.map((tag) => {
-              const current = selected.find((x) => x.id === tag.id)?.weight;
+              const current = selectedById.get(tag.id);
               return (
                 <article key={tag.id} className="tag-row">
                   <div className="tag-row-text">

@@ -38,7 +38,7 @@ export const api = {
       more?: boolean;
     }>(`/api/vndb/search?${params}`, { signal });
   },
-  tags: (q: string, page = 1, category = "") =>
+  tags: (q: string, page = 1, category = "", signal?: AbortSignal) =>
     request<{
       results: VndbTag[];
       recordCount: number;
@@ -47,8 +47,10 @@ export const api = {
       more: boolean;
     }>(
       `/api/vndb/tags?q=${encodeURIComponent(q)}&page=${page}${category ? `&category=${category}` : ""}`,
+      { signal },
     ),
-  detail: (id: string) => request<VnDetail>(`/api/vndb/vn/${id}`),
+  detail: (id: string, signal?: AbortSignal) =>
+    request<VnDetail>(`/api/vndb/vn/${id}`, { signal }),
   library: () => request<LibraryEntry[]>("/api/library"),
   saveLibrary: (id: string, input: LibraryInput) =>
     request<LibraryEntry>(`/api/library/${id}`, {
@@ -64,11 +66,12 @@ export const api = {
       body: JSON.stringify(p),
     }),
   recommendations: () => request<Recommendation[]>("/api/recommendations"),
-  scoreCandidates: (vns: VnSummary[]) =>
+  scoreCandidates: (vns: VnSummary[], signal?: AbortSignal) =>
     request<Recommendation[]>("/api/recommendations/score", {
       method: "POST",
       body: JSON.stringify({ vns }),
+      signal,
     }),
-  recommendation: (id: string) =>
-    request<Recommendation>(`/api/recommendations/${id}`),
+  recommendation: (id: string, signal?: AbortSignal) =>
+    request<Recommendation>(`/api/recommendations/${id}`, { signal }),
 };

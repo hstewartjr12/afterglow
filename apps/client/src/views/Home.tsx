@@ -21,7 +21,7 @@ import { VnBox } from "../components/VnBox";
 import { Loading, ErrorState } from "../components/status";
 import { useToast } from "../components/Toasts";
 import { Motes } from "../components/Motes";
-import { easeOut } from "../lib/motion";
+import { easeOut, useReducedMotion } from "../lib/motion";
 import { picksHeading } from "../lib/timeOfDay";
 import { tintStyle, useCoverTint } from "../lib/coverColor";
 
@@ -34,7 +34,7 @@ function Onboarding({ prefs }: { prefs: Preferences }) {
   const [picked, setPicked] = useState<{ id: string; name: string }[]>([]);
   const tags = useQuery({
     queryKey: ["tags", "", 1, "cont"],
-    queryFn: () => api.tags("", 1, "cont"),
+    queryFn: ({ signal }) => api.tags("", 1, "cont", signal),
   });
   const save = useMutation({
     mutationFn: api.savePreferences,
@@ -131,6 +131,7 @@ export function Home({
   });
   const [featured, setFeatured] = useState(0);
   const [showAll, setShowAll] = useState(false);
+  const reduced = useReducedMotion();
   const all = recs.data ?? [];
   const top = all[featured % Math.max(all.length, 1)];
   const rest = all.filter((r) => r !== top);
@@ -157,10 +158,10 @@ export function Home({
               <m.div
                 key={top.vn.id}
                 className="glow-layer"
-                initial={{ opacity: 0 }}
+                initial={reduced ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.9, ease: "easeInOut" }}
+                transition={{ duration: reduced ? 0 : 0.9, ease: "easeInOut" }}
               >
                 <Glow vn={top.vn} />
               </m.div>
@@ -174,10 +175,15 @@ export function Home({
             <m.div
               key={`cover-${top.vn.id}`}
               className="hero-cover"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, transition: { duration: 0.35 } }}
-              transition={{ duration: 0.55, ease: easeOut }}
+              initial={
+                reduced ? false : { opacity: 0, transform: "translateX(-12px)" }
+              }
+              animate={{ opacity: 1, transform: "translateX(0px)" }}
+              exit={{
+                opacity: 0,
+                transition: { duration: reduced ? 0 : 0.35 },
+              }}
+              transition={{ duration: reduced ? 0 : 0.55, ease: easeOut }}
             >
               <div className="sprite-float">
                 <Cover vn={top.vn} eager className="has-shadow" />
@@ -188,10 +194,16 @@ export function Home({
             <m.div
               key={`story-${top.vn.id}`}
               className="hero-story"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, transition: { duration: 0.3 } }}
-              transition={{ duration: 0.5, ease: easeOut, delay: 0.05 }}
+              initial={
+                reduced ? false : { opacity: 0, transform: "translateY(8px)" }
+              }
+              animate={{ opacity: 1, transform: "translateY(0px)" }}
+              exit={{ opacity: 0, transition: { duration: reduced ? 0 : 0.3 } }}
+              transition={{
+                duration: reduced ? 0 : 0.5,
+                ease: easeOut,
+                delay: reduced ? 0 : 0.05,
+              }}
             >
               <span className="label label-accent">Your next story</span>
               <h1 id="hero-title">{top.vn.title}</h1>

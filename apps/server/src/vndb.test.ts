@@ -4,7 +4,14 @@ vi.mock("./db.js", () => ({
   sqlite: { execute: vi.fn(async () => ({ rows: [] })) },
 }));
 import { sqlite } from "./db.js";
-import { fetchCover, getVn, isCoverUrl, searchVns } from "./vndb.js";
+import {
+  fetchCover,
+  getVn,
+  isCoverUrl,
+  personalizedVns,
+  searchTags,
+  searchVns,
+} from "./vndb.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -112,6 +119,105 @@ describe("concurrent VN requests", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     await getVn("v1");
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("concurrent tag requests", () => {
+  it("shares work while skipping a page of unusable tags", async () => {
+    vi.mocked(fetch).mockImplementation(async (_url, options) => {
+      const body = JSON.parse(options!.body as string);
+      return {
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              id: "g1",
+              name: "Mystery",
+              category: "cont",
+              searchable: true,
+              applicable: body.page === 2,
+              vn_count: 100,
+            },
+          ],
+          count: 51,
+          more: body.page === 1,
+        }),
+      } as Response;
+    });
+    const [first, second] = await Promise.all([
+      searchTags("mystery", 1, "cont"),
+      searchTags("mystery", 1, "cont"),
+    ]);
+    expect(first).toEqual(second);
+    expect(first).toMatchObject({
+      page: 2,
+      recordCount: 51,
+      usableOnPage: 1,
+      results: [{ id: "g1", name: "Mystery" }],
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(sqlite.execute).toHaveBeenCalledTimes(4);
+  });
+
+  it("allows retrying failed tag requests", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: false, status: 429 } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [], count: 0, more: false }),
+      } as Response);
+    const results = await Promise.allSettled([
+      searchTags("retry", 1),
+      searchTags("retry", 1),
+    ]);
+    expect(results.every((result) => result.status === "rejected")).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await searchTags("retry", 1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("personalized catalogue", () => {
+  it("loads popular titles while themes are pending and preserves merge order", async () => {
+    let finishThemed!: () => void;
+    const themedPending = new Promise<void>((resolve) => {
+      finishThemed = resolve;
+    });
+    vi.mocked(fetch).mockImplementation(async (_url, options) => {
+      const body = JSON.parse(options!.body as string);
+      const themed = body.results === 60;
+      if (themed) await themedPending;
+      return {
+        ok: true,
+        json: async () => ({
+          results: themed
+            ? [
+                { id: "v1", title: "Theme" },
+                { id: "v2", title: "Shared theme" },
+              ]
+            : [
+                { id: "v2", title: "Shared popular" },
+                { id: "v3", title: "Popular" },
+              ],
+        }),
+      } as Response;
+    });
+    const pending = personalizedVns(["g1"], true);
+    try {
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    } finally {
+      finishThemed();
+    }
+    const result = await pending;
+    expect(result.map((v) => [v.id, v.title])).toEqual([
+      ["v1", "Theme"],
+      ["v2", "Shared popular"],
+      ["v3", "Popular"],
+    ]);
+    const themedBody = JSON.parse(
+      vi.mocked(fetch).mock.calls[0][1]!.body as string,
+    );
+    expect(themedBody.filters).toEqual(["or", ["tag", "=", ["g1", 2, 0.5]]]);
   });
 });
 

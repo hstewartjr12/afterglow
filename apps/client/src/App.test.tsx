@@ -23,7 +23,15 @@ beforeEach(() => {
           }
         : url.includes("/search?")
           ? { results: [], count: 0 }
-          : [];
+          : url.includes("/tags?")
+            ? {
+                results: [],
+                recordCount: 0,
+                usableOnPage: 0,
+                page: 1,
+                more: false,
+              }
+            : [];
       return { ok: true, status: 200, json: async () => body } as Response;
     }),
   );
