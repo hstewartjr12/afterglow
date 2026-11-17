@@ -115,7 +115,12 @@ export function Discover({
     filterCount ||
     (filters.sort !== "rating" && filters.sort !== "searchrank"),
   );
-  const years = useMemo(() => releaseYears(), []);
+  const years = useMemo(() => {
+    const options = releaseYears();
+    const year = Number(filters.year);
+    if (year && !options.includes(year)) options.push(year);
+    return options.sort((a, b) => b - a);
+  }, [filters.year]);
   const pageCount = found.data?.count
     ? Math.max(1, Math.ceil(found.data.count / PAGE_SIZE))
     : null;
@@ -257,7 +262,7 @@ export function Discover({
               onChange={(e) => update("rating", e.target.value)}
             >
               <option value="">Any rating</option>
-              {[9, 8, 7, 6].map((n) => (
+              {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
                 <option key={n} value={n}>
                   {n}.0+
                 </option>

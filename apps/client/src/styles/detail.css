@@ -383,6 +383,13 @@
     border-top: 1px solid var(--line-strong);
   }
 }
+/* Mobile sheets scroll with the document, so the glow must fit its width. */
+@media (max-width: 800px) {
+  .detail-sheet .glow {
+    inset-inline: 0;
+  }
+}
+
 @media (max-width: 700px) {
   .detail-sheet {
     --sheet-bottom-padding: 32px;

@@ -19,11 +19,6 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    // Node scripts that also run code inside the browser page.
-    files: ["scripts/**/*.mjs"],
-    languageOptions: { globals: { ...globals.node, ...globals.browser } },
-  },
-  {
     files: ["apps/client/**/*.{ts,tsx}"],
     languageOptions: { globals: globals.browser },
     plugins: { "react-hooks": reactHooks },

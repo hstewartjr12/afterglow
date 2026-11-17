@@ -7,24 +7,32 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
+      "afterglow-built": "./dist/index.js",
       "default": "./src/index.ts"
+    },
+    "./spoilers": {
+      "types": "./src/spoilers.ts",
+      "afterglow-built": "./dist/spoilers.js",
+      "default": "./src/spoilers.ts"
     },
     "./constants": {
       "types": "./src/constants.ts",
+      "afterglow-built": "./dist/constants.js",
       "default": "./src/constants.ts"
     },
     "./candidates": {
       "types": "./src/candidates.ts",
+      "afterglow-built": "./dist/candidates.js",
       "default": "./src/candidates.ts"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run src"
   },
   "dependencies": {
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

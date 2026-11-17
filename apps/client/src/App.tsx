@@ -231,6 +231,7 @@ export default function App() {
   const recs = useQuery({
     queryKey: ["recommendations"],
     queryFn: api.recommendations,
+    enabled: false, // Home loads the list. Details only reuse its cached match.
   });
   const matching = useMemo(
     () => recs.data?.find((r) => r.vn.id === route.vn),

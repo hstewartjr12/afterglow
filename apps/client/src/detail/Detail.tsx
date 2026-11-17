@@ -158,6 +158,13 @@ export function Detail({
   const inLibrary = Boolean(current);
   const dirty = formKey !== savedKey;
 
+  useEffect(() => {
+    if (!dirty || !present) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, present]);
+
   const pendingLeave = useRef<(() => void) | null>(null);
   useEffect(
     () => () => {
@@ -195,15 +202,6 @@ export function Detail({
       pendingLeave.current = null;
     },
   });
-  // Titles already in the library save themselves shortly after each change.
-  useEffect(() => {
-    if (!inLibrary || !dirty || save.isPending || save.isError) return;
-    const timer = setTimeout(() => save.mutate(input), 700);
-    return () => clearTimeout(timer);
-    // `input` is derived from formKey; listing it would restart the timer every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inLibrary, dirty, formKey, save.isPending, save.isError]);
-
   const restore = useMutation({
     mutationFn: (entry: LibraryInput) => api.saveLibrary(vn.id, entry),
     onSuccess: () => {
@@ -224,6 +222,33 @@ export function Detail({
       });
     },
   });
+  // Titles already in the library save themselves shortly after each change.
+  useEffect(() => {
+    if (
+      !present ||
+      remove.isPending ||
+      remove.isSuccess ||
+      !inLibrary ||
+      !dirty ||
+      save.isPending ||
+      save.isError
+    )
+      return;
+    const timer = setTimeout(() => save.mutate(input), 700);
+    return () => clearTimeout(timer);
+    // `input` is derived from formKey; listing it would restart the timer every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    present,
+    remove.isPending,
+    remove.isSuccess,
+    inLibrary,
+    dirty,
+    formKey,
+    save.isPending,
+    save.isError,
+  ]);
+
   const taste = useMutation({
     mutationFn: api.savePreferences,
     onSuccess: (data) => {
@@ -232,7 +257,10 @@ export function Detail({
     },
   });
 
+  const trackerDisabled =
+    !lib.isSuccess || remove.isPending || remove.isSuccess;
   const prepareClose = (resume?: () => void) => {
+    if (remove.isPending || remove.isSuccess) return false;
     if (save.isPending || (inLibrary && dirty && !save.isError)) {
       if (!pendingLeave.current) toast("Saving your changes before leaving…");
       pendingLeave.current = resume ?? onClose;
@@ -683,7 +711,7 @@ export function Detail({
               </span>
             )}
           </div>
-          <fieldset className="tracker-field">
+          <fieldset className="tracker-field" disabled={trackerDisabled}>
             <legend className="label">Status</legend>
             <div className="chips">
               {libraryStatuses.map((s) => (
@@ -709,7 +737,7 @@ export function Detail({
               </p>
             )}
           </fieldset>
-          <fieldset className="tracker-field">
+          <fieldset className="tracker-field" disabled={trackerDisabled}>
             <legend className="label">
               Your rating{" "}
               <b>
@@ -755,6 +783,7 @@ export function Detail({
             </span>
             <input
               type="range"
+              disabled={trackerDisabled}
               min="0"
               max="100"
               step="5"
@@ -766,6 +795,7 @@ export function Detail({
             <span className="label">Private notes</span>
             <textarea
               className="textarea"
+              disabled={trackerDisabled}
               maxLength={5000}
               value={form.notes}
               placeholder="Routes finished, where you left off, thoughts…"
@@ -774,6 +804,7 @@ export function Detail({
           </label>
           <button
             className="chip favorite-toggle"
+            disabled={trackerDisabled}
             aria-pressed={form.favorite}
             onClick={() => update({ favorite: !form.favorite })}
           >
@@ -785,6 +816,7 @@ export function Detail({
               {save.isError && (
                 <button
                   className="btn btn-primary tracker-save"
+                  disabled={trackerDisabled}
                   onClick={() => save.mutate(input)}
                 >
                   Retry save
@@ -792,7 +824,9 @@ export function Detail({
               )}
               <button
                 className="link-button tracker-remove"
-                disabled={remove.isPending}
+                disabled={
+                  save.isPending || remove.isPending || remove.isSuccess
+                }
                 onClick={() => remove.mutate()}
               >
                 Remove from library

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { coverSrc } from "./lib/coverColor";
-import { parseDescription, releaseYears } from "./lib/format";
+import { parseDescription, releaseYears, today } from "./lib/format";
 
 describe("VNDB descriptions", () => {
   it("separates spoilers from the rest of the text", () => {
@@ -28,6 +28,15 @@ describe("VNDB descriptions", () => {
     ]);
   });
 
+  it("keeps nested spoilers hidden until the outer passage ends", () => {
+    expect(
+      parseDescription("A[spoiler]B[spoiler]C[/spoiler]D[/spoiler]E"),
+    ).toEqual([
+      { text: "A", spoiler: false },
+      { text: "BCD", spoiler: true },
+      { text: "E", spoiler: false },
+    ]);
+  });
   it("returns nothing for empty descriptions", () => {
     expect(parseDescription(null)).toEqual([]);
     expect(parseDescription("  ")).toEqual([]);
@@ -62,4 +71,9 @@ describe("cover sources", () => {
     );
     expect(coverSrc("/local.png")).toBe("/local.png");
   });
+});
+
+it("records the reader's local calendar date at either end of the day", () => {
+  for (const hour of [0, 23])
+    expect(today(new Date(2026, 10, 17, hour, 59))).toBe("2026-11-17");
 });

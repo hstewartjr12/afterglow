@@ -7,6 +7,7 @@ import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import {
   libraryInputSchema,
+  vndbIdSchema,
   platformSchema,
   preferencesSchema,
   vnSummarySchema,
@@ -32,7 +33,6 @@ const PORT = Number(process.env.PORT) || 3001;
 // No accounts protect this API, so only listen on this machine unless asked otherwise.
 const HOST = process.env.HOST || "127.0.0.1";
 
-const vndbId = z.string().regex(/^v\d+$/);
 const optional = (value: unknown) => value || undefined;
 
 const app = express();
@@ -157,7 +157,7 @@ app.get("/api/vndb/tags", async (req, res) => {
 });
 
 app.get("/api/vndb/vn/:id", async (req, res) => {
-  const vn = await getVn(vndbId.parse(req.params.id));
+  const vn = await getVn(vndbIdSchema.parse(req.params.id));
   if (!vn) {
     res
       .status(404)
@@ -192,8 +192,13 @@ app.get("/api/library", async (_req, res) => {
 });
 
 app.put("/api/library/:vndbId", async (req, res) => {
-  const id = vndbId.parse(req.params.vndbId);
-  const input = libraryInputSchema.parse(req.body);
+  const id = vndbIdSchema.parse(req.params.vndbId);
+  const input = libraryInputSchema
+    .refine((entry) => entry.vn.id === id, {
+      message: "The library VNDB ID must match its story",
+      path: ["vn", "id"],
+    })
+    .parse(req.body);
   const now = new Date().toISOString();
   const fields = {
     status: input.status,
@@ -217,7 +222,7 @@ app.put("/api/library/:vndbId", async (req, res) => {
 });
 
 app.delete("/api/library/:vndbId", async (req, res) => {
-  const id = vndbId.parse(req.params.vndbId);
+  const id = vndbIdSchema.parse(req.params.vndbId);
   await serializeDatabaseOperation(() =>
     db.delete(libraryEntries).where(eq(libraryEntries.vndbId, id)),
   );
@@ -247,12 +252,9 @@ app.get("/api/recommendations", async (_req, res) => {
     readFeedback(),
   ]);
   const positiveIds = recommendationTagIds(library, prefs);
-  const now = Date.now();
   const excluded = new Set([
     ...library.map((entry) => entry.vndbId),
-    ...feedback
-      .filter((entry) => entry.until === null || Date.parse(entry.until) > now)
-      .map((entry) => entry.vndbId),
+    ...feedback.map((entry) => entry.vndbId),
   ]);
   const candidates = await personalizedVns(
     positiveIds,
@@ -272,7 +274,7 @@ app.post("/api/recommendations/score", async (req, res) => {
 });
 
 app.get("/api/recommendations/:id", async (req, res) => {
-  const vn = await getVn(vndbId.parse(req.params.id));
+  const vn = await getVn(vndbIdSchema.parse(req.params.id));
   if (!vn) {
     res
       .status(404)

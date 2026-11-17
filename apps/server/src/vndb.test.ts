@@ -253,6 +253,21 @@ describe("personalized catalogue", () => {
     expect(themedBody.filters).toEqual(["tag", "=", ["g1", 2, 0.5]]);
   });
 
+  it("uses the surviving catalogue source when a first page fails", async () => {
+    const page = () =>
+      Response.json({ results: [{ id: "v1", title: "Available" }] });
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error("Offline"))
+      .mockResolvedValueOnce(page());
+    expect((await personalizedVns(["g1"])).map((v) => v.id)).toEqual(["v1"]);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(page())
+      .mockRejectedValueOnce(new Error("Offline"));
+    expect((await personalizedVns(["g2"])).map((v) => v.id)).toEqual(["v1"]);
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("Offline"));
+    await expect(personalizedVns([])).rejects.toMatchObject({ upstream: true });
+  });
+
   it("replenishes popular discoveries after owned or hidden titles exhaust the first page", async () => {
     const excluded = Array.from({ length: 40 }, (_, i) => `v${i + 1}`);
     const candidates = await personalizedVns([], false, excluded);
@@ -385,6 +400,7 @@ describe("cover proxy", () => {
       }),
     );
     const cover = await fetchCover("https://t.vndb.org/cv/1.jpg");
+    expect(vi.mocked(fetch).mock.calls[0][1]?.redirect).toBe("error");
     expect(cover.type).toBe("image/jpeg");
     expect([...cover.body]).toEqual([1, 2, 3]);
     vi.mocked(fetch).mockResolvedValueOnce(

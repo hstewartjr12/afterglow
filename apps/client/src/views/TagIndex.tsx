@@ -42,15 +42,18 @@ export function TagIndex({
   const reduced = useReducedMotion();
   const [term, setTerm] = useState("");
   const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState([1]);
+  const page = pages[pages.length - 1];
   const [category, setCategory] = useState(initialCategory);
   useEffect(() => {
     const t = setTimeout(() => {
-      setQ(term.trim());
-      setPage(1);
+      if (q !== term.trim()) {
+        setQ(term.trim());
+        setPages([1]);
+      }
     }, 300);
     return () => clearTimeout(t);
-  }, [term]);
+  }, [term, q]);
   const tags = useQuery({
     queryKey: ["tags", q, page, category],
     queryFn: ({ signal }) => api.tags(q, page, category, signal),
@@ -126,7 +129,7 @@ export function TagIndex({
               aria-pressed={category === c.id}
               onClick={() => {
                 setCategory(c.id);
-                setPage(1);
+                setPages([1]);
               }}
             >
               {c.label}
@@ -190,15 +193,17 @@ export function TagIndex({
           <span className="mono">Page {currentPage}</span>
           <button
             className="btn btn-small"
-            disabled={currentPage === 1 || tags.isFetching}
-            onClick={() => setPage(Math.max(1, currentPage - 1))}
+            disabled={pages.length === 1 || tags.isFetching}
+            onClick={() => setPages((previous) => previous.slice(0, -1))}
           >
             ← Previous
           </button>
           <button
             className="btn btn-small"
             disabled={!tags.data?.more || tags.isFetching}
-            onClick={() => setPage(currentPage + 1)}
+            onClick={() =>
+              setPages((previous) => [...previous, currentPage + 1])
+            }
           >
             Next →
           </button>

@@ -39,7 +39,7 @@ Backups can move personal data between the local app and the browser demo. The d
 
 ## Start
 
-Requires Node.js 22 or newer.
+Requires Node.js 22.13 or later in the 22.x series, 24.x, or 26 and newer.
 
 ```bash
 npm install
@@ -69,15 +69,6 @@ npm run build
 
 Run `npm run format` to apply Prettier formatting.
 
-## Screenshots
-
-The README screenshots come from your own running copy, so they show real covers:
-
-```bash
-npm run build && npm start   # in one terminal
-npm run screenshots          # in another; add -- --theme=dark for the -dark versions
-```
-
-Run `npm install` after pulling so Playwright is available, and the first time also run `npx playwright install chromium`. The images include your library and taste profile, so look them over before committing.
+To update the screenshots in `docs/images`, capture the built app manually. Check the images for private library and taste data before committing them.
 
 VN metadata is provided by the [VNDB Kana API](https://api.vndb.org/kana) and remains subject to its terms and data license.

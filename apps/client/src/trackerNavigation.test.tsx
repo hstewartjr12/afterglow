@@ -144,6 +144,14 @@ async function expectClosed() {
 }
 
 describe("leaving tracker changes safely", () => {
+  it("warns on reload while a tracker edit is unsaved", async () => {
+    const { notes } = await openStory();
+    const reload = () =>
+      window.dispatchEvent(new Event("beforeunload", { cancelable: true }));
+    expect(reload()).toBe(true);
+    fireEvent.change(notes, { target: { value: "Unfinished note" } });
+    expect(reload()).toBe(false);
+  });
   it("waits for close-triggered saves and shows the fresh notes when revisited before refetch completes", async () => {
     const { dialog, notes } = await openStory();
     const confirm = vi.spyOn(window, "confirm");

@@ -45,7 +45,7 @@ export function BackupPanel() {
   const download = useMutation({
     mutationFn: async () => {
       const backup = backupSchema.parse(await api.backup());
-      const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      const blob = new Blob([JSON.stringify(backup)], {
         type: "application/json",
       });
       if (blob.size > MAX_BACKUP_BYTES)

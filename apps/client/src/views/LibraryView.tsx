@@ -61,7 +61,7 @@ export function LibraryView({
             ? (b.personalRating ?? -1) - (a.personalRating ?? -1)
             : sort === "progress"
               ? b.progress - a.progress
-              : b.updatedAt.localeCompare(a.updatedAt),
+              : Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
       );
   }, [lib.data, filter, term, favoritesOnly, sort]);
   const counts = useMemo(() => {
