@@ -47,14 +47,23 @@ export const vndbTagSchema = z.object({
 });
 export type VndbTag = z.infer<typeof vndbTagSchema>;
 
+export const vndbIdSchema = z.string().regex(/^v[1-9]\d*$/, "Invalid VNDB ID");
+export const timestampSchema = z
+  .string()
+  .datetime({ offset: true })
+  .refine((value) => Number.isFinite(Date.parse(value)), "Invalid timestamp");
+const readingDateSchema = z
+  .union([z.string().date(), timestampSchema])
+  .nullable();
+
 export const libraryInputSchema = z.object({
   status: libraryStatusSchema.default("backlog"),
   personalRating: z.number().int().min(1).max(10).nullable().default(null),
   favorite: z.boolean().default(false),
   progress: z.number().int().min(0).max(100).default(0),
   notes: z.string().max(5000).default(""),
-  startedAt: z.string().nullable().default(null),
-  completedAt: z.string().nullable().default(null),
+  startedAt: readingDateSchema.default(null),
+  completedAt: readingDateSchema.default(null),
   vn: vnSummarySchema,
 });
 export type LibraryInput = z.infer<typeof libraryInputSchema>;
@@ -89,15 +98,6 @@ export type Recommendation = {
   matchPercent: number;
   reasons: string[];
 };
-
-export const vndbIdSchema = z.string().regex(/^v[1-9]\d*$/, "Invalid VNDB ID");
-export const timestampSchema = z
-  .string()
-  .datetime({ offset: true })
-  .refine((value) => Number.isFinite(Date.parse(value)), "Invalid timestamp");
-const readingDateSchema = z
-  .union([z.string().date(), timestampSchema])
-  .nullable();
 
 export const recommendationFeedbackSchema = z
   .object({

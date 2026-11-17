@@ -79,3 +79,37 @@ it("cancels the superseded tag request and displays the new category", async () 
   fireEvent.click(like);
   expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: "g1" }), 1);
 });
+
+it("returns to the previous visited page after VNDB skips unusable tags", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const requested = Number(
+        new URL(input, "http://localhost").searchParams.get("page"),
+      );
+      return Response.json({
+        results: [],
+        recordCount: 50,
+        usableOnPage: 0,
+        page: requested === 1 ? 2 : 5,
+        more: requested === 1,
+      });
+    }),
+  );
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <TagIndex
+        initialCategory=""
+        selected={[]}
+        onClose={vi.fn()}
+        onPick={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("Page 2");
+  expect(screen.getByRole("button", { name: /Previous/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+  await screen.findByText("Page 5");
+  fireEvent.click(screen.getByRole("button", { name: /Previous/ }));
+  await screen.findByText("Page 2");
+});

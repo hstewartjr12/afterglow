@@ -119,13 +119,13 @@ export const storage = {
       const request = tx.objectStore("library").getAll();
       request.onsuccess = () =>
         done(
-          (request.result as LibraryEntry[]).sort((a, b) =>
-            b.updatedAt.localeCompare(a.updatedAt),
+          (request.result as LibraryEntry[]).sort(
+            (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
           ),
         );
     }),
   saveLibrary: (id: string, input: LibraryInput) => {
-    if (!/^v\d+$/.test(id) || input.vn.id !== id)
+    if (!vndbIdSchema.safeParse(id).success || input.vn.id !== id)
       return Promise.reject(new Error("Invalid visual novel."));
     const parsed = libraryInputSchema.parse(input);
     return transaction<LibraryEntry>("library", "readwrite", (tx, done) => {

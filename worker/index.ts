@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { languages } from "@afterglow/shared/constants";
-import { platformSchema } from "@afterglow/shared";
+import { platformSchema, vndbIdSchema } from "@afterglow/shared";
 import {
   fetchCover,
   getVn,
@@ -10,7 +10,7 @@ import {
   searchVns,
 } from "./vndb";
 type Env = { ASSETS: { fetch(request: Request): Promise<Response> } };
-const idSchema = z.string().regex(/^v\d+$/);
+
 function json(value: unknown, status = 200) {
   return Response.json(value, {
     status,
@@ -113,7 +113,9 @@ async function route(request: Request, env: Env): Promise<Response> {
     );
   }
   if (path.startsWith("/api/vndb/vn/")) {
-    const vn = await getVn(idSchema.parse(path.slice("/api/vndb/vn/".length)));
+    const vn = await getVn(
+      vndbIdSchema.parse(path.slice("/api/vndb/vn/".length)),
+    );
     return vn ? json(vn) : json({ error: "Visual novel not found" }, 404);
   }
   if (path === "/api/cover") {

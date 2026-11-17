@@ -1,3 +1,7 @@
+import {
+  splitSpoilers,
+  type DescriptionPart,
+} from "@afterglow/shared/spoilers";
 export const lengths = [
   "",
   "Very short",
@@ -24,7 +28,6 @@ export const platformLabels: Record<string, string> = {
   ps4: "PlayStation 4",
   ps5: "PlayStation 5",
 };
-export type DescriptionPart = { text: string; spoiler: boolean };
 const formatting = /\[\/?(?:url(?:=[^\]]*)?|b|i|u|s|raw|quote|code)\]/gi;
 /**
  * VNDB descriptions use BBCode. Formatting tags are unwrapped and the text is
@@ -35,17 +38,11 @@ export function parseDescription(
   s: string | null | undefined,
 ): DescriptionPart[] {
   if (!s) return [];
-  const parts: DescriptionPart[] = [];
-  const pattern = /\[spoiler\]([\s\S]*?)(?:\[\/spoiler\]|$)/gi;
-  let last = 0;
-  for (const match of s.matchAll(pattern)) {
-    parts.push({ text: s.slice(last, match.index), spoiler: false });
-    parts.push({ text: match[1], spoiler: true });
-    last = match.index + match[0].length;
-  }
-  parts.push({ text: s.slice(last), spoiler: false });
-  const cleaned = parts
-    .map((p) => ({ ...p, text: p.text.replace(formatting, "") }))
+  const cleaned = splitSpoilers(s)
+    .map((p) => ({
+      ...p,
+      text: p.text.replace(formatting, "").replace(/\[\/?spoiler\]/gi, ""),
+    }))
     .filter((p) => p.text.trim());
   // Trim only the outer edges so spacing between parts is kept.
   if (cleaned.length) {
@@ -56,7 +53,12 @@ export function parseDescription(
   return cleaned;
 }
 export const platformName = (p: string) => platformLabels[p] ?? p.toUpperCase();
-export const today = () => new Date().toISOString().slice(0, 10);
+export const today = (date = new Date()) =>
+  [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 export function activateOnKey(activate: () => void) {
   return (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {

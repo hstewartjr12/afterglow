@@ -1,3 +1,4 @@
+import { splitSpoilers } from "@afterglow/shared/spoilers";
 import type { VnDetail, VndbTag, VnSummary } from "@afterglow/shared";
 
 const BASE = "https://api.vndb.org/kana";
@@ -110,7 +111,11 @@ async function post(path: string, body: Raw, fallback: string): Promise<any> {
         : fallback,
       response.status,
     );
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new UpstreamError(fallback);
+  }
 }
 async function loadQuery<T>(
   key: string,
@@ -218,7 +223,7 @@ export async function searchTags(
   more: boolean;
   results: VndbTag[];
 }> {
-  const key = `tags3:${category ?? "all"}:${q.toLowerCase()}:${page}`;
+  const key = `tags4:${category ?? "all"}:${q.toLowerCase()}:${page}`;
   const result = await cachedFetch(key, DAY, async () => {
     const predicates: any[] = [];
     if (q) predicates.push(["search", "=", q]);
@@ -246,9 +251,10 @@ export async function searchTags(
         id: t.id,
         name: t.name,
         aliases: t.aliases ?? [],
-        description: (t.description ?? "")
-          .replace(/\[spoiler\][\s\S]*?\[\/spoiler\]/gi, "")
-          .replace(/\[[^\]]+\]/g, ""),
+        description: splitSpoilers(t.description ?? "")
+          .filter((part) => !part.spoiler)
+          .map((part) => part.text.replace(/\[[^\]]+\]/g, ""))
+          .join(""),
         category: t.category,
         searchable: t.searchable,
         applicable: t.applicable,
@@ -286,12 +292,20 @@ export async function personalizedVns(
       results: 60,
       page,
     });
-  let [themed, popular] = await Promise.all([
-    seeds.length
-      ? themedPage(1)
-      : Promise.resolve({ results: [], more: false } as VnPage<VnSummary>),
+  const emptyPage: VnPage<VnSummary> = { results: [], more: false };
+  const [themeResult, popularResult] = await Promise.allSettled([
+    seeds.length ? themedPage(1) : Promise.resolve(emptyPage),
     popularVns(),
   ]);
+  if (
+    popularResult.status === "rejected" &&
+    (!seeds.length || themeResult.status === "rejected")
+  )
+    throw popularResult.reason;
+  let themed =
+    themeResult.status === "fulfilled" ? themeResult.value : emptyPage;
+  let popular =
+    popularResult.status === "fulfilled" ? popularResult.value : emptyPage;
   const themedResults = [...themed.results];
   const popularResults = [...popular.results];
   const merge = () => [
@@ -353,6 +367,7 @@ export async function fetchCover(url: string) {
   let response: Response;
   try {
     response = await fetch(url, {
+      redirect: "error",
       headers: {
         "User-Agent":
           "Afterglow/0.1 browser demo (github.com/hstewartjr12/afterglow)",
@@ -365,7 +380,9 @@ export async function fetchCover(url: string) {
   const type = response.headers.get("content-type") ?? "";
   if (!response.ok || !type.startsWith("image/"))
     throw new UpstreamError("The cover could not be loaded.", response.status);
-  const body = await response.arrayBuffer();
+  const body = await response.arrayBuffer().catch(() => {
+    throw new UpstreamError("The cover could not be loaded.");
+  });
   await edge
     ?.put(
       cacheRequest,

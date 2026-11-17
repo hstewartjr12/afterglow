@@ -1,6 +1,6 @@
 # Afterglow demo
 
-[Try the hosted demo](https://afterglow-demo-hstewartjr12.hstew21.chatgpt.site)
+[Try the hosted demo](https://afterglow-demo.hstew21.chatgpt.site)
 
 A separate, publicly shareable demo of [Afterglow](https://github.com/hstewartjr12/afterglow). It uses the same interface and recommendation scoring as the local app, with each visitor's library, notes, and taste preferences stored in their browser using IndexedDB. No account or API key is needed.
 
@@ -19,7 +19,7 @@ Backups can move personal data between the local app and the browser demo. The d
 
 ## Run locally
 
-Requires Node.js 22 or newer.
+Requires Node.js 22.13 or later in the 22.x series, 24.x, or 26 and newer.
 
 ```sh
 npm install

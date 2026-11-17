@@ -1,4 +1,8 @@
-import { languages } from "@afterglow/shared/constants";
+import {
+  languages,
+  platforms,
+  libraryStatuses,
+} from "@afterglow/shared/constants";
 import type { View } from "../types";
 
 export type DiscoverState = {
@@ -43,8 +47,11 @@ export const defaultLibrary = (): LibraryState => ({
   favoritesOnly: false,
   sort: "updated",
 });
-const oneOf = (value: string | null, choices: string[], fallback = "") =>
-  value && choices.includes(value) ? value : fallback;
+const oneOf = (
+  value: string | null,
+  choices: readonly string[],
+  fallback = "",
+) => (value && choices.includes(value) ? value : fallback);
 export function readRoute(search: string, previous?: AppRoute): AppRoute {
   const p = new URLSearchParams(search);
   const view = oneOf(
@@ -54,7 +61,7 @@ export function readRoute(search: string, previous?: AppRoute): AppRoute {
   ) as View;
   const route: AppRoute = {
     view,
-    vn: /^v\d+$/.test(p.get("vn") ?? "") ? p.get("vn") : null,
+    vn: /^v[1-9]\d*$/.test(p.get("vn") ?? "") ? p.get("vn") : null,
     discover: previous?.discover ?? defaultDiscover(),
     library: previous?.library ?? defaultLibrary(),
   };
@@ -62,16 +69,7 @@ export function readRoute(search: string, previous?: AppRoute): AppRoute {
     const page = Number(p.get("page") ?? 1);
     route.discover = {
       q: (p.get("q") ?? "").slice(0, 100),
-      platform: oneOf(p.get("platform"), [
-        "win",
-        "lin",
-        "mac",
-        "and",
-        "ios",
-        "swi",
-        "ps4",
-        "ps5",
-      ]),
+      platform: oneOf(p.get("platform"), platforms),
       language: oneOf(p.get("language"), [...languages]),
       tag: /^g\d+$/.test(p.get("tag") ?? "") ? p.get("tag")! : "",
       tagName: /^g\d+$/.test(p.get("tag") ?? "")
@@ -107,11 +105,7 @@ export function readRoute(search: string, previous?: AppRoute): AppRoute {
   }
   if (view === "library")
     route.library = {
-      filter: oneOf(
-        p.get("filter"),
-        ["all", "wishlist", "backlog", "playing", "completed", "dropped"],
-        "all",
-      ),
+      filter: oneOf(p.get("filter"), ["all", ...libraryStatuses], "all"),
       term: (p.get("q") ?? "").slice(0, 100),
       favoritesOnly: p.get("favorites") === "1",
       sort: oneOf(
