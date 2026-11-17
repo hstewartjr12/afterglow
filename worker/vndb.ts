@@ -367,7 +367,7 @@ export async function fetchCover(url: string) {
   let response: Response;
   try {
     response = await fetch(url, {
-      redirect: "error",
+      redirect: "manual", // Keep upstream redirects from leaving the VNDB allowlist.
       headers: {
         "User-Agent":
           "Afterglow/0.1 browser demo (github.com/hstewartjr12/afterglow)",

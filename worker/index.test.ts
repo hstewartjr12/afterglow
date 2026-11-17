@@ -40,6 +40,34 @@ describe("public catalogue server", () => {
       expect((await request(path)).status).toBe(400);
     expect(upstream).not.toHaveBeenCalled();
   });
+  it("serves a VNDB cover as a cacheable image", async () => {
+    const url = "https://t.vndb.org/cv/91/88391.jpg";
+    const bytes = new Uint8Array([255, 216, 255, 217]);
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(bytes, { headers: { "Content-Type": "image/jpeg" } }),
+      );
+    const response = await request(`/api/cover?url=${encodeURIComponent(url)}`);
+    expect(upstream).toHaveBeenCalledWith(
+      url,
+      expect.objectContaining({ redirect: "manual" }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("image/jpeg");
+    expect(response.headers.get("Cache-Control")).toContain("immutable");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+  });
+  it("rejects upstream cover redirects without fetching their targets", async () => {
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(Response.redirect("https://example.test/cover.jpg"));
+    const response = await request(
+      "/api/cover?url=https://t.vndb.org/cv/1.jpg",
+    );
+    expect(response.status).toBe(502);
+    expect(upstream).toHaveBeenCalledTimes(1);
+  });
   it("maps live catalogue responses and caches repeated queries", async () => {
     const upstream = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       Response.json({
