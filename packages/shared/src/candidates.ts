@@ -3,10 +3,11 @@ import type { LibraryEntry, Preferences } from "./index.ts";
 const tagId = /^g\d+$/;
 
 /** Select public theme IDs for retrieval without changing recommendation scoring. */
-export function recommendationTagIds(
+export function recommendationSeeds(
   library: LibraryEntry[],
   prefs: Preferences,
-): string[] {
+  day = Math.floor(Date.now() / 86_400_000),
+) {
   const avoided = new Set(
     prefs.tagPreferences.filter((tag) => tag.weight < 0).map((tag) => tag.id),
   );
@@ -46,16 +47,32 @@ export function recommendationTagIds(
       learned.set(id, (learned.get(id) ?? 0) + Math.min(4, signal) * relevance);
     }
   }
-  const learnedIds = [...learned]
-    .filter(([id, weight]) => weight > 0 && !manualIds.includes(id))
+  const rankedLearned = [...learned]
+    .filter(([, weight]) => weight > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([id]) => id);
+  const learnedIds = rankedLearned.filter((id) => !manualIds.includes(id));
+  const loves = [
+    ...new Set(manual.filter((tag) => tag.weight === 3).map((tag) => tag.id)),
+  ];
+  const focus = loves.length ? loves[day % loves.length] : rankedLearned[0];
   // Keep explicit preferences first, while reserving up to two slots for the
   // themes readers have demonstrated they enjoy. Unused slots stay manual.
   const manualSlots = 8 - Math.min(2, learnedIds.length);
-  return [
+  const tags = [
     ...manualIds.slice(0, manualSlots),
     ...learnedIds,
     ...manualIds.slice(manualSlots),
   ].slice(0, 8);
+  return {
+    tags,
+    focus: focus && (tags.length > 1 || focus !== tags[0]) ? focus : undefined,
+  };
+}
+
+export function recommendationTagIds(
+  library: LibraryEntry[],
+  prefs: Preferences,
+) {
+  return recommendationSeeds(library, prefs).tags;
 }

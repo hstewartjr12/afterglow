@@ -50,31 +50,35 @@ function explicitFit(eligible: VnSummary["tags"], prefs: Preferences) {
   if (!prefs.tagPreferences.length)
     return { score: 0.5, positive: [] as string[], negative: [] as string[] };
   const tags = new Map(eligible.map((tag) => [tag.id, tag]));
-  let positiveTotal = 0,
-    positiveMatch = 0,
-    avoidTotal = 0,
-    avoidMatch = 0;
-  const positive: string[] = [];
-  const negative: string[] = [];
+  type Match = { name: string; strength: number; explain: boolean };
+  const positive: Match[] = [];
+  const negative: Match[] = [];
   for (const pref of prefs.tagPreferences) {
     const tag = tags.get(pref.id);
-    const relevance = tag ? clamp(tag.rating / 3) : 0;
-    if (pref.weight > 0) {
-      positiveTotal += pref.weight;
-      positiveMatch += pref.weight * relevance;
-      if (relevance >= 0.25 && tag?.spoiler === 0) positive.push(pref.name);
-    } else if (pref.weight < 0) {
-      avoidTotal += Math.abs(pref.weight);
-      avoidMatch += Math.abs(pref.weight) * relevance;
-      if (relevance >= 0.25 && tag?.spoiler === 0) negative.push(pref.name);
-    }
+    if (!tag || !pref.weight) continue;
+    const relevance = clamp(tag.rating / 3);
+    const strength = (relevance * Math.abs(pref.weight)) / 3;
+    if (strength <= 0) continue;
+    (pref.weight > 0 ? positive : negative).push({
+      name: pref.name,
+      strength,
+      explain: relevance >= 0.25 && tag.spoiler === 0,
+    });
   }
-  const attraction = positiveTotal ? positiveMatch / positiveTotal : 0;
-  const aversion = avoidTotal ? avoidMatch / avoidTotal : 0;
+  positive.sort((a, b) => b.strength - a.strength);
+  negative.sort((a, b) => b.strength - a.strength);
+  // One strong theme can carry a title. Reserve a smaller bonus for breadth.
+  const attraction =
+    0.8 * (positive[0]?.strength ?? 0) + 0.2 * (positive[1]?.strength ?? 0);
+  const aversion = negative[0]?.strength ?? 0;
   return {
     score: clamp(0.5 + 0.5 * attraction - aversion),
-    positive,
-    negative,
+    positive: positive
+      .filter((match) => match.explain)
+      .map((match) => match.name),
+    negative: negative
+      .filter((match) => match.explain)
+      .map((match) => match.name),
   };
 }
 

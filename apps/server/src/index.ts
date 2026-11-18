@@ -15,7 +15,7 @@ import {
   type Preferences,
 } from "@afterglow/shared";
 import { languages } from "@afterglow/shared/constants";
-import { recommendationTagIds } from "@afterglow/shared/candidates";
+import { recommendationSeeds } from "@afterglow/shared/candidates";
 import { db, serializeDatabaseOperation } from "./db.js";
 import { appSettings, libraryEntries } from "./schema.js";
 import {
@@ -251,15 +251,16 @@ app.get("/api/recommendations", async (_req, res) => {
     readPreferences(),
     readFeedback(),
   ]);
-  const positiveIds = recommendationTagIds(library, prefs);
+  const { tags, focus } = recommendationSeeds(library, prefs);
   const excluded = new Set([
     ...library.map((entry) => entry.vndbId),
     ...feedback.map((entry) => entry.vndbId),
   ]);
   const candidates = await personalizedVns(
-    positiveIds,
+    tags,
     prefs.useSpoilerTagsInRecommendations,
     excluded,
+    focus,
   );
   res.json(rankRecommendations(candidates, library, prefs, true, 24));
 });

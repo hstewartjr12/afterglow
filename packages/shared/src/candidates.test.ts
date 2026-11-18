@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LibraryEntry, Preferences, VnSummary } from "./index.ts";
-import { recommendationTagIds } from "./candidates.ts";
+import { recommendationSeeds, recommendationTagIds } from "./candidates.ts";
 
 const prefs: Preferences = {
   tagPreferences: [],
@@ -47,6 +47,26 @@ const tag = (id: string, rating = 3, spoiler = 0) => ({
 });
 
 describe("recommendation retrieval seeds", () => {
+  it("rotates across all Loves and otherwise focuses the strongest learned theme", () => {
+    const tags = Array.from({ length: 10 }, (_, i) => ({
+      ...tag(`g${i + 1}`),
+      weight: 3,
+    }));
+    const library = [entry([tag("g99"), tag("g98", 1)], { favorite: true })];
+    expect(
+      recommendationSeeds(library, { ...prefs, tagPreferences: tags }, 9).focus,
+    ).toBe("g10");
+    expect(
+      recommendationSeeds(library, { ...prefs, tagPreferences: tags }, 10)
+        .focus,
+    ).toBe("g1");
+    expect(recommendationSeeds(library, prefs).focus).toBe("g99");
+    expect(
+      recommendationSeeds([], { ...prefs, tagPreferences: tags.slice(0, 1) })
+        .focus,
+    ).toBeUndefined();
+  });
+
   it("uses highly rated and favorite themes without requiring manual preferences", () => {
     const library = [
       entry([tag("g1")], { personalRating: 10 }),

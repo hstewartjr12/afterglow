@@ -100,6 +100,41 @@ describe("rankRecommendations", () => {
     expect(clean[0].matchPercent - clean[1].matchPercent).toBeGreaterThan(15);
     expect(clean[0].matchPercent).toBeLessThan(95);
   });
+  it("rewards Love more than Like even with a single preference", () => {
+    const title = vn("v1", [{ id: "g1", name: "Mystery" }]);
+    const score = (weight: number) =>
+      rankRecommendations([title], [], {
+        ...prefs,
+        tagPreferences: [{ id: "g1", name: "Mystery", weight }],
+      })[0].score;
+    expect(score(3)).toBeGreaterThan(score(1));
+  });
+
+  it("keeps the strongest avoid penalty and explains the most influential visible matches first", () => {
+    const tags = [
+      { id: "g1", name: "Comedy", weight: 1, rating: 1 },
+      { id: "g2", name: "Drama", weight: 3, rating: 2 },
+      { id: "g3", name: "Mystery", weight: 3, rating: 3 },
+      { id: "g4", name: "Violence", weight: -3, rating: 1 },
+      { id: "g5", name: "Gore", weight: -3, rating: 2 },
+    ];
+    const title = vn("v1", tags);
+    // Equal preference counts isolate scoring from profile confidence.
+    const rank = (id: string) =>
+      rankRecommendations([title], [], {
+        ...prefs,
+        tagPreferences: tags.map((tag) =>
+          tag.id === "g4" ? { ...tag, id } : tag,
+        ),
+      })[0];
+    const result = rank("g4");
+    expect(result.score).toBe(rank("g99").score);
+    expect(result.reasons.slice(0, 2)).toEqual([
+      "Matches Mystery and Drama",
+      "Includes a theme you avoid: Gore",
+    ]);
+  });
+
   it("learns from ratings, favorites, and dropped titles", () => {
     const mystery = vn("v10", [{ id: "g1", name: "Mystery" }]);
     const gore = vn("v11", [{ id: "g3", name: "Gore" }]);
@@ -161,7 +196,9 @@ describe("rankRecommendations", () => {
     );
     const scores = ranked.map((x) => x.matchPercent);
     expect(Math.max(...scores)).toBeLessThan(95);
-    expect(Math.max(...scores) - Math.min(...scores)).toBeGreaterThan(25);
+    expect(Math.max(...scores) - Math.min(...scores)).toBeGreaterThanOrEqual(
+      25,
+    );
     expect(new Set(scores).size).toBe(4);
   });
   it("uses spoiler tags only when opted in and never names them in explanations", () => {
@@ -189,8 +226,8 @@ describe("rankRecommendations", () => {
   });
 
   it.each([
-    [false, 64.23884930837862],
-    [true, 67.20364097504529],
+    [false, 63.672807641711955],
+    [true, 66.63759930837863],
   ])(
     "preserves mixed-profile scores, reasons, and ties with spoilers=%s",
     (includeSpoilers, topScore) => {
@@ -248,7 +285,7 @@ describe("rankRecommendations", () => {
         topScore,
         54.02634930837862,
         54.02634930837862,
-        36.63541180837863,
+        41.51207847504529,
       ]);
       expect(ranked[0].reasons).toEqual([
         "Matches Mystery and Romance",

@@ -283,6 +283,7 @@ export async function personalizedVns(
   tagIds: string[],
   includeSpoilers = false,
   excludedIds: Iterable<string> = [],
+  focus?: string,
 ) {
   const excluded = new Set(excludedIds);
   const seeds = [...new Set(tagIds)].slice(0, 8);
@@ -300,13 +301,25 @@ export async function personalizedVns(
       page,
     });
   const emptyPage: VnPage<VnSummary> = { results: [], more: false };
-  const [themeResult, popularResult] = await Promise.allSettled([
+  const [themeResult, popularResult, focusedResult] = await Promise.allSettled([
     seeds.length ? themedPage(1) : Promise.resolve(emptyPage),
     popularVns(),
+    focus && !(seeds.length === 1 && seeds[0] === focus)
+      ? query(`focus1:${spoilerLevel}:${focus}`, {
+          filters: ["tag", "=", [focus, spoilerLevel, 2.5]],
+          sort: "rating",
+          reverse: true,
+          results: 16,
+          page: 1,
+        })
+      : Promise.resolve(emptyPage),
   ]);
   if (
     popularResult.status === "rejected" &&
-    (!seeds.length || themeResult.status === "rejected")
+    (!seeds.length || themeResult.status === "rejected") &&
+    !(
+      focusedResult.status === "fulfilled" && focusedResult.value.results.length
+    )
   )
     throw popularResult.reason;
   let themed =
@@ -314,11 +327,16 @@ export async function personalizedVns(
   let popular =
     popularResult.status === "fulfilled" ? popularResult.value : emptyPage;
   const themedResults = [...themed.results];
+  const focused =
+    focusedResult.status === "fulfilled" ? focusedResult.value.results : [];
   const popularResults = [...popular.results];
   const merge = () =>
     [
       ...new Map(
-        [...themedResults, ...popularResults].map((vn) => [vn.id, vn]),
+        [...themedResults, ...popularResults, ...focused].map((vn) => [
+          vn.id,
+          vn,
+        ]),
       ).values(),
     ].filter((vn) => !excluded.has(vn.id));
   let candidates = merge();

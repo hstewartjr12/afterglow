@@ -253,6 +253,18 @@ describe("personalized catalogue", () => {
     expect(themedBody.filters).toEqual(["tag", "=", ["g1", 2, 0.5]]);
   });
 
+  it("merges focused picks and applies exclusions across all sources", async () => {
+    vi.mocked(fetch).mockImplementation(async (_url, options) => {
+      const body = JSON.parse(options!.body as string);
+      const ids = body.results === 16 ? ["v1", "v2", "v3"] : ["v1"];
+      if (body.results === 16)
+        expect(body.filters).toEqual(["tag", "=", ["g2", 0, 2.5]]);
+      return Response.json({ results: ids.map((id) => ({ id, title: id })) });
+    });
+    const result = await personalizedVns(["g1", "g2"], false, ["v2"], "g2");
+    expect(result.map((vn) => vn.id)).toEqual(["v1", "v3"]);
+  });
+
   it("uses the surviving catalogue source when a first page fails", async () => {
     const page = () =>
       Response.json({ results: [{ id: "v1", title: "Available" }] });
