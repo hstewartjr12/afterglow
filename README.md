@@ -2,6 +2,8 @@
 
 [**Try the live demo →**](https://afterglow-demo.hstew21.chatgpt.site) — no installation or account required.
 
+[**Open Afterglow Web →**](https://afterglow-web.hstew21.chatgpt.site) — sign in with a ChatGPT account that has been granted access to sync your library across devices.
+
 The demo saves your library, notes, and taste preferences in your browser. It does not sync across devices, and clearing site data removes your demo saves.
 
 A local-first visual novel discovery app powered by VNDB. Search titles, build a personal library, search VNDB's full tag catalogue, set weighted taste preferences, and get explainable recommendations.
